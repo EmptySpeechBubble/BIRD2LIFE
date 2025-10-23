@@ -179,6 +179,31 @@
         background: #0b7dda;
     }
 
+    .mute-btn {
+        margin-top: 5px;
+        padding: 5px 10px;
+        background: #FF9800;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+        width: 100%;
+        transition: background 0.3s;
+    }
+
+    .mute-btn:hover {
+        background: #F57C00;
+    }
+
+    .mute-btn.muted {
+        background: #f44336;
+    }
+
+    .mute-btn.muted:hover {
+        background: #d32f2f;
+    }
+
     .instruction-manual {
         position: fixed;
         top: 50%;
@@ -269,6 +294,7 @@
             <div id="stats"></div>
             <button id="screenshotBtn" class="screenshot-btn">📷 Take Screenshot</button>
             <button id="manualBtn" class="manual-btn">📖 Guide & Features</button>
+            <button id="muteBtn" class="mute-btn">🔊 Mute</button>
         </div>
         <!-- Add missing toggle buttons -->
         <button id="toggleInfo" class="toggle-panel">ℹ️ Show Info</button>
@@ -6509,7 +6535,7 @@ if (this.state === BIRD_STATES.FLYING) {
                         this.applyForce({ x: 0, y: GRAVITY });
 
                         // Random chirping while idle (ambient sounds)
-                        if (Math.random() < 0.015) { // ~1.5% chance per frame
+                        if (Math.random() < 0.005) { // ~0.5% chance per frame (ambient)
                             const chirpTypes = [CHIRP_TYPES.SOCIAL, CHIRP_TYPES.CONTACT_CALL];
                             this.chirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)], 0.5);
                         }
@@ -6660,8 +6686,8 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                                 this.peckTimer = (this.peckTimer + 1) % 100;
                             }
 
-                            // Random chirping while perched (increased frequency for better audio testing)
-                            if (Math.random() < 0.02) { // ~2% chance per frame (increased from 0.8%)
+                            // Random chirping while perched (ambient sounds)
+                            if (Math.random() < 0.008) { // ~0.8% chance per frame
                                 const chirpTypes = [CHIRP_TYPES.SOCIAL, CHIRP_TYPES.CONTACT_CALL, CHIRP_TYPES.TERRITORIAL];
                                 this.chirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)], 0.6);
                             }
@@ -14740,6 +14766,37 @@ if (antHill) {
             if (e.target === instructionManual) {
                 instructionManual.style.display = 'none';
                 debugLog("Instruction manual closed (clicked outside)");
+            }
+        });
+    }
+
+    // Mute button toggle
+    const muteBtn = document.getElementById('muteBtn');
+    let isMuted = false;
+
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+
+            if (isMuted) {
+                // Mute audio by suspending context
+                if (audioContext && audioContext.state === 'running') {
+                    audioContext.suspend();
+                }
+                muteBtn.textContent = '🔇 Unmute';
+                muteBtn.classList.add('muted');
+                debugLog("Audio muted");
+            } else {
+                // Unmute audio by resuming context
+                if (!audioContext) {
+                    initializeAudio();
+                }
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                muteBtn.textContent = '🔊 Mute';
+                muteBtn.classList.remove('muted');
+                debugLog("Audio unmuted");
             }
         });
     }
