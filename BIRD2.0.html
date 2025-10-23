@@ -13752,7 +13752,7 @@ function spawnOwls() {
                 // Determine bird's unique voice based on ID
                 let scale, oscType, pitchVariation;
 
-                if (birdId !== null) {
+                if (birdId !== null && birdId !== undefined && typeof birdId === 'number') {
                     // Give each bird a consistent voice based on their ID
                     const voiceIndex = birdId % 4;
                     const voiceTypes = [
@@ -13766,8 +13766,10 @@ function spawnOwls() {
                     scale = voice.scale;
                     oscType = voice.type;
                     pitchVariation = voice.variation;
+                    console.log("Using bird voice:", voice.name, "for bird ID:", birdId);
                 } else {
                     // Random voice if no bird ID provided
+                    console.log("Using random voice (birdId was:", birdId, ")");
                     const scaleKeys = Object.keys(BIRD_SCALES);
                     scale = BIRD_SCALES[scaleKeys[Math.floor(Math.random() * scaleKeys.length)]];
                     oscType = Math.random() < 0.7 ? 'sine' : 'triangle';
