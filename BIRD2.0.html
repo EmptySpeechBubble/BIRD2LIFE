@@ -6094,7 +6094,7 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                     };
 
                     const volume = (volumeMap[type] || 0.3) * intensity;
-                    synthBirdChirp(volume);
+                    synthBirdChirp(volume, this.id); // Pass bird ID for consistent voice
                 }
             }
 
@@ -13642,18 +13642,59 @@ function spawnOwls() {
         }
 
         // V26: Wind chime playback with reduced volume
-        // Simplified bird chirp synthesis based on natural bird sounds
-        function synthBirdChirp(volume = 0.3) {
+        // Musical scales for bird chirps (frequencies in Hz)
+        const BIRD_SCALES = {
+            // Pentatonic scale (very melodic, used in many bird songs)
+            pentatonic: [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51], // C5-E6
+            // Major scale (bright and cheerful)
+            major: [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50], // C5-C6
+            // Minor pentatonic (more exotic)
+            minorPentatonic: [440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50], // A4-C6
+            // High melodic (like a songbird)
+            highMelodic: [783.99, 880.00, 987.77, 1046.50, 1174.66, 1318.51, 1396.91, 1567.98] // G5-G6
+        };
+
+        // Musical bird chirp synthesis with different voices per bird
+        function synthBirdChirp(volume = 0.3, birdId = null) {
             if (!audioContext) return;
 
             try {
-                // Random parameters for variety
-                const baseFreq = 2000 + Math.random() * 1500;
-                const chirpLength = 0.1 + Math.random() * 0.2;
+                // Determine bird's unique voice based on ID
+                let scale, oscType, pitchVariation;
+
+                if (birdId !== null) {
+                    // Give each bird a consistent voice based on their ID
+                    const voiceIndex = birdId % 4;
+                    const voiceTypes = [
+                        { scale: BIRD_SCALES.pentatonic, type: 'sine', variation: 1.0, name: 'Melodic' },
+                        { scale: BIRD_SCALES.major, type: 'triangle', variation: 1.05, name: 'Bright' },
+                        { scale: BIRD_SCALES.minorPentatonic, type: 'sine', variation: 0.98, name: 'Exotic' },
+                        { scale: BIRD_SCALES.highMelodic, type: 'sine', variation: 1.02, name: 'Songbird' }
+                    ];
+
+                    const voice = voiceTypes[voiceIndex];
+                    scale = voice.scale;
+                    oscType = voice.type;
+                    pitchVariation = voice.variation;
+                } else {
+                    // Random voice if no bird ID provided
+                    const scaleKeys = Object.keys(BIRD_SCALES);
+                    scale = BIRD_SCALES[scaleKeys[Math.floor(Math.random() * scaleKeys.length)]];
+                    oscType = Math.random() < 0.7 ? 'sine' : 'triangle';
+                    pitchVariation = 0.98 + Math.random() * 0.04;
+                }
+
+                // Pick random notes from the bird's scale
+                const noteIndex = Math.floor(Math.random() * scale.length);
+                const baseFreq = scale[noteIndex] * pitchVariation;
+
+                // Chirp pattern: pick 1-3 notes for variety
+                const chirpPattern = Math.floor(Math.random() * 3) + 1;
+                const chirpLength = 0.08 + Math.random() * 0.12;
 
                 // Create oscillator
                 const osc = audioContext.createOscillator();
-                osc.type = 'sine';
+                osc.type = oscType;
                 osc.frequency.value = baseFreq;
 
                 // Create gain node
@@ -13664,7 +13705,7 @@ function spawnOwls() {
                 const filter = audioContext.createBiquadFilter();
                 filter.type = 'bandpass';
                 filter.frequency.value = baseFreq;
-                filter.Q.value = 2;
+                filter.Q.value = 3;
 
                 // Connect nodes
                 osc.connect(filter);
@@ -13675,24 +13716,42 @@ function spawnOwls() {
                 const now = audioContext.currentTime;
                 osc.start(now);
 
-                // Create chirp envelope
+                // Create musical chirp envelope with scale-based pitch changes
                 gainNode.gain.setValueAtTime(0, now);
                 gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
 
-                // Frequency modulation for the chirp
-                osc.frequency.setValueAtTime(baseFreq, now);
-                osc.frequency.linearRampToValueAtTime(baseFreq * 1.2, now + chirpLength * 0.5);
-                osc.frequency.linearRampToValueAtTime(baseFreq * 0.9, now + chirpLength);
+                // Musical frequency modulation - jump to scale tones
+                if (chirpPattern === 1) {
+                    // Single note with vibrato
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.linearRampToValueAtTime(baseFreq * 1.05, now + chirpLength * 0.3);
+                    osc.frequency.linearRampToValueAtTime(baseFreq, now + chirpLength);
+                } else if (chirpPattern === 2) {
+                    // Two note pattern (interval jump)
+                    const nextNoteIndex = Math.min(noteIndex + 2, scale.length - 1);
+                    const nextFreq = scale[nextNoteIndex] * pitchVariation;
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.linearRampToValueAtTime(nextFreq, now + chirpLength * 0.5);
+                    osc.frequency.linearRampToValueAtTime(nextFreq * 0.95, now + chirpLength);
+                } else {
+                    // Three note trill
+                    const nextNote1 = scale[Math.min(noteIndex + 1, scale.length - 1)] * pitchVariation;
+                    const nextNote2 = scale[Math.min(noteIndex + 3, scale.length - 1)] * pitchVariation;
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.linearRampToValueAtTime(nextNote1, now + chirpLength * 0.3);
+                    osc.frequency.linearRampToValueAtTime(nextNote2, now + chirpLength * 0.7);
+                    osc.frequency.linearRampToValueAtTime(nextNote2 * 0.95, now + chirpLength);
+                }
 
                 // End the chirp
                 gainNode.gain.linearRampToValueAtTime(0, now + chirpLength);
                 osc.stop(now + chirpLength + 0.01);
 
-                // For multiple chirps in a sequence
-                if (Math.random() < 0.5) {
+                // Continue with a sequence of chirps (30% chance)
+                if (Math.random() < 0.3) {
                     setTimeout(() => {
-                        synthBirdChirp(volume * 0.8);
-                    }, (chirpLength + 0.05 + Math.random() * 0.1) * 1000);
+                        synthBirdChirp(volume * 0.85, birdId);
+                    }, (chirpLength + 0.08 + Math.random() * 0.15) * 1000);
                 }
             } catch (e) {
                 console.error("Error playing bird chirp:", e);
