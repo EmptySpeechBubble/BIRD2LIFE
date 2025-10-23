@@ -6097,6 +6097,8 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                 if (now - this.lastChirp < 1000) return; // Cooldown
 
                 this.lastChirp = now;
+                console.log("Bird chirp called - type:", type, "intensity:", intensity, "birdId:", this.id);
+
                 activeChirps.push({
                     x: this.x,
                     y: this.y,
@@ -6107,21 +6109,20 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                 });
 
                 // Play audio using simplified bird chirp synthesis
-                if (audioContext) {
-                    // Use synthBirdChirp for more natural bird sounds
-                    // Different chirp types get different volumes
-                    const volumeMap = {
-                        [CHIRP_TYPES.SOCIAL]: 0.3,
-                        [CHIRP_TYPES.FOOD_CALL]: 0.4,
-                        [CHIRP_TYPES.CONTACT_CALL]: 0.25,
-                        [CHIRP_TYPES.ALERT]: 0.5,
-                        [CHIRP_TYPES.TERRITORIAL]: 0.35,
-                        [CHIRP_TYPES.VICTORY]: 0.45
-                    };
+                // Use synthBirdChirp for more natural bird sounds
+                // Different chirp types get different volumes
+                const volumeMap = {
+                    [CHIRP_TYPES.SOCIAL]: 0.3,
+                    [CHIRP_TYPES.FOOD_CALL]: 0.4,
+                    [CHIRP_TYPES.CONTACT_CALL]: 0.25,
+                    [CHIRP_TYPES.ALERT]: 0.5,
+                    [CHIRP_TYPES.TERRITORIAL]: 0.35,
+                    [CHIRP_TYPES.VICTORY]: 0.45
+                };
 
-                    const volume = (volumeMap[type] || 0.3) * intensity;
-                    synthBirdChirp(volume, this.id); // Pass bird ID for consistent voice
-                }
+                const volume = (volumeMap[type] || 0.3) * intensity;
+                console.log("Calling synthBirdChirp with volume:", volume);
+                synthBirdChirp(volume, this.id); // Pass bird ID for consistent voice
             }
 
             // Announce food discovery to flockmates
@@ -13674,6 +13675,44 @@ function spawnOwls() {
         }
 
         // V26: Wind chime playback with reduced volume
+        // Simple test function to verify audio is working (call from console)
+        window.testAudio = function() {
+            console.log("Testing basic audio...");
+            if (!audioContext) {
+                initializeAudio();
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            console.log("Audio context state:", audioContext ? audioContext.state : "null");
+
+            if (!audioContext) {
+                console.error("Cannot initialize audio context");
+                return;
+            }
+
+            // Play a simple tone
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+
+            osc.frequency.value = 440; // A4
+            osc.type = 'sine';
+
+            gain.gain.value = 0;
+
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+
+            const now = audioContext.currentTime;
+            osc.start(now);
+            gain.gain.linearRampToValueAtTime(0.3, now + 0.01);
+            gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.stop(now + 0.5);
+
+            console.log("Test tone should play now (440Hz for 0.5s)");
+        };
+
         // Musical scales for bird chirps (frequencies in Hz)
         const BIRD_SCALES = {
             // Pentatonic scale (very melodic, used in many bird songs)
@@ -13688,20 +13727,26 @@ function spawnOwls() {
 
         // Musical bird chirp synthesis with different voices per bird
         function synthBirdChirp(volume = 0.3, birdId = null) {
+            console.log("synthBirdChirp called - volume:", volume, "birdId:", birdId);
+
             // Initialize audio context if needed
             if (!audioContext) {
+                console.log("Initializing audio context...");
                 initializeAudio();
             }
 
             // Resume audio context if suspended (required by browsers)
             if (audioContext && audioContext.state === 'suspended') {
+                console.log("Resuming suspended audio context...");
                 audioContext.resume();
             }
 
             if (!audioContext) {
-                console.warn("Audio context not available for bird chirp");
+                console.error("Audio context not available for bird chirp");
                 return;
             }
+
+            console.log("Audio context state:", audioContext.state);
 
             try {
                 // Determine bird's unique voice based on ID
@@ -13759,11 +13804,13 @@ function spawnOwls() {
 
                 // Start sound
                 const now = audioContext.currentTime;
+                console.log("Starting oscillator - baseFreq:", baseFreq, "type:", oscType, "pattern:", chirpPattern);
                 osc.start(now);
 
                 // Create musical chirp envelope with scale-based pitch changes
                 gainNode.gain.setValueAtTime(0, now);
                 gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
+                console.log("Chirp playing - volume:", volume, "length:", chirpLength);
 
                 // Musical frequency modulation - jump to scale tones
                 if (chirpPattern === 1) {
