@@ -283,6 +283,7 @@
             <button id="addFoodBtn">🌽 Scatter Food</button>
             <button id="toggleRainBtn">☔ Toggle Rain</button>
             <button id="spawnWormBtn">🪱 Spawn Worms</button>
+            <button id="spawnAntsBtn">🐜 Spawn Ants</button>
             <button id="addBabyBirdBtn">🐤 Add Baby Bird</button>
             <button id="addSquirrelBtn">🐿️ Add Squirrel</button>
             <button id="addRatKingBtn">👑🐀 Add Rat King</button>
@@ -1478,7 +1479,7 @@ let rainsCompleted = 0; // Track number of completed rain events (for pond forma
     FEEDING: 0.25,     // Increased for more ground foraging
     FORAGING: 0.09,
     BUILDING: 0.015,
-    HOPPING: 0.50      // Increased significantly for more ground hopping
+    HOPPING: 0.70      // Increased even more for much more ground hopping
         };
         
         // V26: Increased state durations for more stable perching behaviors
@@ -2129,9 +2130,9 @@ if (isTabVisible) {
             // Create 3-7 puddles after rain
             const puddleCount = Math.floor(3 + Math.random() * 5);
             for (let i = 0; i < puddleCount; i++) {
-                // Distribute across ground
+                // Distribute across ground (positioned below ground line)
                 const puddleX = Math.random() * canvas.width;
-                const puddleY = canvas.height * GROUND_HEIGHT_RATIO + 3;
+                const puddleY = canvas.height * GROUND_HEIGHT_RATIO + 15;
                 
                 puddles.push({
                     x: puddleX,
@@ -6079,21 +6080,21 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                     intensity: intensity
                 });
 
-                // Play audio (independent of wind chimes - chirps should always play!)
+                // Play audio using simplified bird chirp synthesis
                 if (audioContext) {
-                    const notes = {
-                        [CHIRP_TYPES.SOCIAL]: ['C4'],
-                        [CHIRP_TYPES.FOOD_CALL]: ['G4', 'C5'],
-                        [CHIRP_TYPES.CONTACT_CALL]: ['E4'],
-                        [CHIRP_TYPES.ALERT]: ['C3', 'C3'],
-                        [CHIRP_TYPES.TERRITORIAL]: ['F3'],
-                        [CHIRP_TYPES.VICTORY]: ['C5', 'E5', 'G5']
+                    // Use synthBirdChirp for more natural bird sounds
+                    // Different chirp types get different volumes
+                    const volumeMap = {
+                        [CHIRP_TYPES.SOCIAL]: 0.3,
+                        [CHIRP_TYPES.FOOD_CALL]: 0.4,
+                        [CHIRP_TYPES.CONTACT_CALL]: 0.25,
+                        [CHIRP_TYPES.ALERT]: 0.5,
+                        [CHIRP_TYPES.TERRITORIAL]: 0.35,
+                        [CHIRP_TYPES.VICTORY]: 0.45
                     };
 
-                    const chirpNotes = notes[type] || ['C4'];
-                    chirpNotes.forEach((note, i) => {
-                        setTimeout(() => playNote(note, 0.5 * intensity), i * 100);
-                    });
+                    const volume = (volumeMap[type] || 0.3) * intensity;
+                    synthBirdChirp(volume);
                 }
             }
 
@@ -7545,9 +7546,9 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                                // If reached final waypoint, clear path
 if (this.pathIndex >= this.path.length) {
     // Check if we intended to hop
-    if (this.intendToHop && Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO - 10)) < 15) {
-        // Ensure we're on the ground
-        this.y = canvas.height * GROUND_HEIGHT_RATIO - 10;
+    if (this.intendToHop && Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 20)) < 35) {
+        // Ensure we're on/below the ground line (can hop into grass)
+        this.y = canvas.height * GROUND_HEIGHT_RATIO + 20;
         this.velocity = { x: 0, y: 0 }; // Full stop
         
         // IMPORTANT: Transition to hopping state
@@ -7628,13 +7629,13 @@ if (this.pathIndex >= this.path.length) {
            
     
                                 } else if (r < BIRD_STATE_PREFERENCES.PERCHING + BIRD_STATE_PREFERENCES.FEEDING) {
-   // Go to ground to forage
+   // Go to ground to forage (below ground line to reach worms/branches)
    // Reuse groundY from earlier in update() - just reference it
    const targetX = Math.random() * canvas.width;
-   const forageGroundY = canvas.height * GROUND_HEIGHT_RATIO - 10;
+   const forageGroundY = canvas.height * GROUND_HEIGHT_RATIO + 20;
 
-   // Very high chance to hop on ground (increased from 0.8 to 0.95)
-   if (Math.random() < 0.95) {
+   // Very high chance to hop on ground (increased from 0.95 to 0.98)
+   if (Math.random() < 0.98) {
        // Create a direct path to ground
        this.path = [
            { x: this.x, y: this.y }, // Current position
@@ -7675,15 +7676,15 @@ if (this.pathIndex >= this.path.length) {
                     
 
                         case BIRD_STATES.HOPPING:
-    // CRITICAL FIX: Immediately verify and enforce ground position
-    if (Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO - 10)) > 5) {
-        debugLog(`Fixing bird position in hopping state: ${this.y} → ${canvas.height * GROUND_HEIGHT_RATIO - 10}`);
-        this.y = canvas.height * GROUND_HEIGHT_RATIO - 10;
+    // CRITICAL FIX: Immediately verify and enforce ground position (allow hopping below ground into grass)
+    if (Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 20)) > 25) {
+        debugLog(`Fixing bird position in hopping state: ${this.y} → ${canvas.height * GROUND_HEIGHT_RATIO + 20}`);
+        this.y = canvas.height * GROUND_HEIGHT_RATIO + 20;
         this.velocity = { x: 0, y: 0 };
     }
-    
-    // Define hopping ground level once to ensure consistency
-    const hoppingGroundY = canvas.height * GROUND_HEIGHT_RATIO - 10;
+
+    // Define hopping ground level once to ensure consistency (below ground line for worms/branches)
+    const hoppingGroundY = canvas.height * GROUND_HEIGHT_RATIO + 20;
 
     // Only stay in hopping state for a reasonable duration
     if (this.stateTimer < BIRD_STATE_DURATION.HOPPING) {
@@ -13641,41 +13642,98 @@ function spawnOwls() {
         }
 
         // V26: Wind chime playback with reduced volume
+        // Simplified bird chirp synthesis based on natural bird sounds
+        function synthBirdChirp(volume = 0.3) {
+            if (!audioContext) return;
+
+            try {
+                // Random parameters for variety
+                const baseFreq = 2000 + Math.random() * 1500;
+                const chirpLength = 0.1 + Math.random() * 0.2;
+
+                // Create oscillator
+                const osc = audioContext.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = baseFreq;
+
+                // Create gain node
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 0;
+
+                // Filter to shape the sound
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = baseFreq;
+                filter.Q.value = 2;
+
+                // Connect nodes
+                osc.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Start sound
+                const now = audioContext.currentTime;
+                osc.start(now);
+
+                // Create chirp envelope
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
+
+                // Frequency modulation for the chirp
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.linearRampToValueAtTime(baseFreq * 1.2, now + chirpLength * 0.5);
+                osc.frequency.linearRampToValueAtTime(baseFreq * 0.9, now + chirpLength);
+
+                // End the chirp
+                gainNode.gain.linearRampToValueAtTime(0, now + chirpLength);
+                osc.stop(now + chirpLength + 0.01);
+
+                // For multiple chirps in a sequence
+                if (Math.random() < 0.5) {
+                    setTimeout(() => {
+                        synthBirdChirp(volume * 0.8);
+                    }, (chirpLength + 0.05 + Math.random() * 0.1) * 1000);
+                }
+            } catch (e) {
+                console.error("Error playing bird chirp:", e);
+            }
+        }
+
         function playNote(note, duration = 4) {
             if (!audioContext) return;
-            
+
             try {
                 // Create oscillator for main tone
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 // Create a second oscillator for harmonics (metallic quality)
                 const harmonicOsc = audioContext.createOscillator();
                 const harmonicGain = audioContext.createGain();
-                
+
                 // Set type and frequency
                 oscillator.type = 'sine';
                 oscillator.frequency.setValueAtTime(windChimeSounds[note], audioContext.currentTime);
-                
+
                 // Harmonic oscillator (higher frequency for metallic sound)
                 harmonicOsc.type = 'sine';
                 harmonicOsc.frequency.setValueAtTime(windChimeSounds[note] * 2.7, audioContext.currentTime); // Upper harmonic
                 harmonicGain.gain.setValueAtTime(0, audioContext.currentTime);
                 harmonicGain.gain.linearRampToValueAtTime(0.05, audioContext.currentTime + 0.1); // Reduced from 0.07 (25% reduction)
                 harmonicGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
-                
+
                 // Connect nodes
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
                 harmonicOsc.connect(harmonicGain);
                 harmonicGain.connect(audioContext.destination);
-                
+
                 // Set envelope for wind chime sound with 25% reduced volume
                 gainNode.gain.setValueAtTime(0, audioContext.currentTime);
                 gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.2); // Reduced from 0.2 (25% reduction)
                 gainNode.gain.exponentialRampToValueAtTime(0.0075, audioContext.currentTime + duration * 0.8); // Reduced from 0.01
                 gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
-                
+
                 // Start and stop
                 oscillator.start();
                 harmonicOsc.start();
@@ -14728,6 +14786,34 @@ if (toggleMushroomModeBtn) {
         }
         
         debugLog(`Manually spawned ${wormCount} worms`);
+    });
+
+    const spawnAntsBtn = document.getElementById('spawnAntsBtn');
+    spawnAntsBtn.addEventListener('click', () => {
+        // Create ant hill if it doesn't exist
+        if (!antHill) {
+            const groundY = canvas.height * GROUND_HEIGHT_RATIO;
+            antHill = {
+                x: canvas.width / 2,
+                y: groundY + 5,
+                entranceY: groundY + 2,
+                size: 20,
+                ants: [],
+                lastAntSpawnTime: 0,
+                food: 0
+            };
+            debugLog(`Ant hill created at (${antHill.x}, ${antHill.y})`);
+        }
+
+        // Spawn 10 ants at once for testing
+        const antCount = 10;
+        for (let i = 0; i < antCount; i++) {
+            if (ants.length < 50) { // Reasonable max
+                spawnAnt();
+            }
+        }
+
+        debugLog(`Manually spawned ${antCount} ants`);
     });
 
     const toggleMushroom = document.getElementById('toggleMushroom');
