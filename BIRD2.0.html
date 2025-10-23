@@ -6504,10 +6504,16 @@ if (this.state === BIRD_STATES.FLYING) {
                         // Apply air resistance
                         this.velocity.x *= AIR_RESISTANCE;
                         this.velocity.y *= AIR_RESISTANCE;
-                        
+
                         // Apply slight gravity
                         this.applyForce({ x: 0, y: GRAVITY });
-                        
+
+                        // Random chirping while idle (ambient sounds)
+                        if (Math.random() < 0.015) { // ~1.5% chance per frame
+                            const chirpTypes = [CHIRP_TYPES.SOCIAL, CHIRP_TYPES.CONTACT_CALL];
+                            this.chirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)], 0.5);
+                        }
+
                         // Check for baby birds needing feeding - higher priority than hunger
                         if (!this.isWild && babyBirds.length > 0 && Math.random() < 0.05) {
                             // Check more frequently for babies that need feeding
@@ -6654,8 +6660,8 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                                 this.peckTimer = (this.peckTimer + 1) % 100;
                             }
 
-                            // Random chirping while perched (increased frequency)
-                            if (Math.random() < 0.008) { // ~0.8% chance per frame
+                            // Random chirping while perched (increased frequency for better audio testing)
+                            if (Math.random() < 0.02) { // ~2% chance per frame (increased from 0.8%)
                                 const chirpTypes = [CHIRP_TYPES.SOCIAL, CHIRP_TYPES.CONTACT_CALL, CHIRP_TYPES.TERRITORIAL];
                                 this.chirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)], 0.6);
                             }
@@ -13656,7 +13662,20 @@ function spawnOwls() {
 
         // Musical bird chirp synthesis with different voices per bird
         function synthBirdChirp(volume = 0.3, birdId = null) {
-            if (!audioContext) return;
+            // Initialize audio context if needed
+            if (!audioContext) {
+                initializeAudio();
+            }
+
+            // Resume audio context if suspended (required by browsers)
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if (!audioContext) {
+                console.warn("Audio context not available for bird chirp");
+                return;
+            }
 
             try {
                 // Determine bird's unique voice based on ID
@@ -15351,10 +15370,18 @@ const clickTimeout = 500; // ms between clicks to count as multi-click
 
 // Canvas click for food and triple-click detection
 canvas.addEventListener('click', (e) => {
+    // Initialize audio on first click (required by browsers)
+    if (!audioContext) {
+        initializeAudio();
+    }
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+
     // Prevent any default behaviors and stop propagation
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Get the correct bounding rectangle, accounting for scrolling
     const rect = canvas.getBoundingClientRect();
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
