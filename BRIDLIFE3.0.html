@@ -4660,9 +4660,14 @@ function drawWorms() {
                 this.depth = Math.random(); // 0 = foreground, 1 = background
                 this.scale = 1 - this.depth * 0.3; // Scale based on depth
                 this.age = Math.random() * (TREE_LIFESPAN * 0.5); // Stagger initial ages
-                
-                // Always place tree base at ground level
-                this.y = canvas.height * GROUND_HEIGHT_RATIO;
+
+                // Place tree base lower for foreground trees (depth illusion)
+                // Trees in foreground (depth closer to 0) go deeper into grass
+                const depthOffset = (1 - this.depth) * 40; // Up to 40px lower for foreground trees
+                this.y = canvas.height * GROUND_HEIGHT_RATIO + depthOffset;
+
+                // Make foreground trees slightly thicker for depth illusion
+                this.trunkWidth = trunkWidth * (1 + (1 - this.depth) * 0.3); // Up to 30% thicker
                 
                 if (hasBranches) {
                     const branchCount = Math.floor(1 + Math.random() * 3);
