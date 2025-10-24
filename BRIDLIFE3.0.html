@@ -1429,6 +1429,7 @@ let dayNightCycleCount = 0; // Count completed day/night cycles
 let rainbowsShown = 0; // Track number of rainbows that have appeared
 let rainsCompleted = 0; // Track number of completed rain events (for pond formation)
 let playingTheHits = false; // Flag to disable random chirps during playthehits performance
+let isMuted = false; // Track mute state globally
         
         // Wind Chime Sound Effect System
         let windChimeEnabled = false;
@@ -15002,7 +15003,6 @@ if (antHill) {
 
     // Mute button toggle
     const muteBtn = document.getElementById('muteBtn');
-    let isMuted = false;
 
     if (muteBtn) {
         muteBtn.addEventListener('click', () => {
