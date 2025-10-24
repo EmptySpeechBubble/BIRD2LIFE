@@ -6526,7 +6526,8 @@ if (this.state === BIRD_STATES.FLYING) {
                         this.applyForce({ x: 0, y: GRAVITY });
 
                         // Random chirping while idle (ambient sounds)
-                        if (Math.random() < 0.005) { // ~0.5% chance per frame (ambient)
+                        // Don't chirp during playthehits performance
+                        if (!playingTheHits && Math.random() < 0.005) { // ~0.5% chance per frame (ambient)
                             const chirpTypes = [CHIRP_TYPES.SOCIAL, CHIRP_TYPES.CONTACT_CALL];
                             this.chirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)], 0.5);
                         }
@@ -6596,7 +6597,8 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                             }
 
                             // Random chirping while idle (increased frequency)
-                            if (Math.random() < 0.006) { // ~0.6% chance per frame
+                            // Don't chirp during playthehits performance
+                            if (!playingTheHits && Math.random() < 0.006) { // ~0.6% chance per frame
                                 this.chirp(CHIRP_TYPES.SOCIAL, 0.5);
                             }
                         }
@@ -6678,7 +6680,8 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                             }
 
                             // Random chirping while perched (ambient sounds)
-                            if (Math.random() < 0.008) { // ~0.8% chance per frame
+                            // Don't chirp during playthehits performance
+                            if (!playingTheHits && Math.random() < 0.008) { // ~0.8% chance per frame
                                 const chirpTypes = [CHIRP_TYPES.SOCIAL, CHIRP_TYPES.CONTACT_CALL, CHIRP_TYPES.TERRITORIAL];
                                 this.chirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)], 0.6);
                             }
@@ -13713,6 +13716,153 @@ function spawnOwls() {
             minorPentatonic: [440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50], // A4-C6
             // High melodic (like a songbird)
             highMelodic: [783.99, 880.00, 987.77, 1046.50, 1174.66, 1318.51, 1396.91, 1567.98] // G5-G6
+        };
+
+        // Hidden console command: playthehits
+        // Makes birds chirp melodic patterns inspired by popular songs
+        window.playthehits = function() {
+            console.log("🎵 Playing the hits! Birds will chirp popular melodies...");
+
+            if (!audioContext) {
+                initializeAudio();
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if (!audioContext) {
+                console.error("Cannot initialize audio context");
+                return;
+            }
+
+            // Check if muted
+            if (typeof isMuted !== 'undefined' && isMuted) {
+                console.log("Audio is muted, unmute to hear the hits!");
+                return;
+            }
+
+            // Check if already playing
+            if (playingTheHits) {
+                console.log("Already playing the hits! Wait for the current song to finish.");
+                return;
+            }
+
+            // Melodic patterns (rhythm and note patterns inspired by songs)
+            const melodies = [
+                // "Call Me Maybe" pattern - upbeat and catchy
+                { name: "Call Me Maybe", notes: [659, 587, 523, 587, 659, 698, 783], durations: [0.15, 0.15, 0.2, 0.15, 0.15, 0.2, 0.3] },
+                // "Who Let the Dogs Out" pattern - rhythmic and repetitive
+                { name: "Who Let the Dogs Out", notes: [523, 523, 587, 659, 523, 523, 587, 659], durations: [0.12, 0.12, 0.12, 0.25, 0.12, 0.12, 0.12, 0.25] },
+                // "Sittin' On The Dock of the Bay" pattern - relaxed whistling
+                { name: "Sittin' On The Dock of the Bay", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                // "Me and Julio" pattern - playful and light
+                { name: "Me and Julio Down by the Schoolyard", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                // "Young Folks" pattern - whistling melody
+                { name: "Young Folks", notes: [880, 783, 698, 783, 880, 987, 880], durations: [0.2, 0.15, 0.15, 0.2, 0.2, 0.25, 0.3] },
+                // "Pumped Up Kicks" pattern - mellow whistle
+                { name: "Pumped Up Kicks", notes: [659, 698, 783, 698, 659, 587, 659], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                // "Don't Worry Be Happy" pattern - cheerful whistling
+                { name: "Don't Worry Be Happy", notes: [523, 659, 783, 880, 783, 659, 523], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
+                // "Walk Like an Egyptian" pattern - quirky melody
+                { name: "Walk Like an Egyptian", notes: [587, 523, 587, 698, 783, 698, 587], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
+                // "Whistle While You Work" pattern - classic Disney whistle
+                { name: "Whistle While You Work", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] },
+                // "Happy" by Pharrell - upbeat and cheerful
+                { name: "Happy", notes: [659, 659, 698, 783, 880, 783, 698], durations: [0.15, 0.15, 0.2, 0.2, 0.3, 0.2, 0.3] },
+                // "Somewhere Over the Rainbow" - classic dreamy melody
+                { name: "Somewhere Over the Rainbow", notes: [523, 659, 783, 880, 987, 880, 783, 659], durations: [0.2, 0.2, 0.25, 0.3, 0.3, 0.25, 0.2, 0.3] },
+                // "Lean on Me" - soulful and warm
+                { name: "Lean on Me", notes: [587, 659, 698, 659, 587, 523], durations: [0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                // "Three Little Birds" - reggae feel
+                { name: "Three Little Birds", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.2, 0.25, 0.2, 0.2, 0.3] },
+                // "What a Wonderful World" - gentle and sweet
+                { name: "What a Wonderful World", notes: [523, 587, 659, 783, 880, 783, 659], durations: [0.25, 0.2, 0.25, 0.3, 0.3, 0.25, 0.3] },
+                // "Take On Me" - 80s synth classic
+                { name: "Take On Me", notes: [659, 587, 659, 783, 880, 783, 659], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
+                // "Sweet Child O' Mine" - rock anthem
+                { name: "Sweet Child O' Mine", notes: [587, 698, 783, 698, 880, 783, 698], durations: [0.15, 0.15, 0.2, 0.15, 0.25, 0.2, 0.3] },
+                // "Stand by Me" - steady and comforting
+                { name: "Stand by Me", notes: [523, 523, 587, 659, 698, 659, 587], durations: [0.2, 0.2, 0.2, 0.25, 0.3, 0.25, 0.3] },
+                // "Livin' On a Prayer" - 80s rock energy
+                { name: "Livin' On a Prayer", notes: [523, 587, 659, 698, 783, 698, 659], durations: [0.15, 0.15, 0.2, 0.2, 0.3, 0.2, 0.3] },
+                // "My Girl" - classic soul melody
+                { name: "My Girl", notes: [659, 698, 783, 698, 659, 587, 523], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                // "Isn't She Lovely" - Stevie Wonder classic
+                { name: "Isn't She Lovely", notes: [587, 659, 698, 783, 880, 783, 698, 659], durations: [0.15, 0.15, 0.2, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                // "Can't Help Falling in Love" - romantic melody
+                { name: "Can't Help Falling in Love", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.25, 0.3, 0.25, 0.25, 0.2, 0.3] },
+                // "Every Breath You Take" - 80s Police classic
+                { name: "Every Breath You Take", notes: [698, 783, 880, 783, 698, 659, 587], durations: [0.2, 0.2, 0.25, 0.2, 0.2, 0.2, 0.3] },
+                // "Don't Stop Believin'" - Journey anthem
+                { name: "Don't Stop Believin'", notes: [587, 659, 698, 783, 880, 783, 698, 659], durations: [0.15, 0.15, 0.2, 0.2, 0.3, 0.2, 0.15, 0.3] },
+                // "You Are My Sunshine" - sweet and simple
+                { name: "You Are My Sunshine", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] }
+            ];
+
+            // Pick ONE random melody
+            const melody = melodies[Math.floor(Math.random() * melodies.length)];
+            console.log(`🎶 Playing: "${melody.name}"`);
+
+            // Disable random chirping during performance
+            playingTheHits = true;
+
+            if (birds.length === 0) {
+                console.log("No birds in the garden to sing!");
+                playingTheHits = false;
+                return;
+            }
+
+            // Divide the melody among available birds
+            const availableBirds = birds.slice(0, Math.min(birds.length, melody.notes.length));
+            const notesPerBird = Math.ceil(melody.notes.length / availableBirds.length);
+
+            console.log(`🐦 ${availableBirds.length} birds will share the melody (${melody.notes.length} notes)`);
+
+            let currentTime = audioContext.currentTime + 0.2; // Small delay to start
+            let totalDuration = 0;
+
+            // Each bird gets a portion of the melody
+            availableBirds.forEach((bird, birdIndex) => {
+                const startNote = birdIndex * notesPerBird;
+                const endNote = Math.min(startNote + notesPerBird, melody.notes.length);
+
+                for (let i = startNote; i < endNote; i++) {
+                    const freq = melody.notes[i];
+                    const duration = melody.durations[i];
+
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    filter.type = 'bandpass';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 3;
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+
+                    gain.gain.value = 0;
+                    gain.gain.setValueAtTime(0, currentTime);
+                    gain.gain.linearRampToValueAtTime(0.18, currentTime + 0.01);
+                    gain.gain.linearRampToValueAtTime(0, currentTime + duration);
+
+                    osc.start(currentTime);
+                    osc.stop(currentTime + duration + 0.01);
+
+                    currentTime += duration + 0.08; // Small gap between notes
+                    totalDuration = currentTime - audioContext.currentTime;
+                }
+            });
+
+            // Re-enable chirping after the song finishes
+            setTimeout(() => {
+                playingTheHits = false;
+                console.log("🎵 Song finished! Regular chirping resumed.");
+            }, totalDuration * 1000 + 500);
         };
 
         // Musical bird chirp synthesis with different voices per bird
