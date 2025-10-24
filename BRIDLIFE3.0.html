@@ -14277,14 +14277,32 @@ function spawnOwls() {
 
                 // Draw music note
                 ctx.save();
-                ctx.globalAlpha = opacity;
+
+                // Mushroom mode enhancements: bigger, expanding, more colorful
+                if (mushroomMode) {
+                    // Expand from small to big over first half of animation
+                    const expandProgress = Math.min(progress * 2, 1); // 0 to 1 in first half
+                    const expandScale = 0.5 + (expandProgress * 2.5); // Start at 0.5x, grow to 3x
+                    noteSize = noteSize * expandScale * 2; // Double base size in mushroom mode
+
+                    // Rainbow color cycling in mushroom mode
+                    const hue = (colorCycleTimer / 50 + chirp.birdId * 40) % 360;
+                    noteColor = `hsl(${hue}, 100%, 60%)`;
+
+                    // Pulse opacity for extra effect
+                    const pulseOpacity = 0.7 + Math.sin(age / 100) * 0.3;
+                    ctx.globalAlpha = opacity * pulseOpacity;
+                } else {
+                    ctx.globalAlpha = opacity;
+                }
+
                 ctx.font = `${noteSize}px Arial`;
                 ctx.fillStyle = noteColor;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
                 // Add slight side-to-side wobble
-                const wobble = Math.sin(age / 100) * 3;
+                const wobble = Math.sin(age / 100) * (mushroomMode ? 8 : 3);
 
                 ctx.fillText(noteSymbol, chirp.x + wobble, chirp.y - 20 - floatUp);
 
