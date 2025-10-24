@@ -293,9 +293,9 @@
             <h3>Garden Ecosystem</h3>
             <div id="stats"></div>
             <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
-                <label style="cursor: pointer; user-select: none;">
+                <label style="cursor: pointer; user-select: none;" title="Show Real-Time Clock & Forecast">
                     <input type="checkbox" id="clockToggle" style="margin-right: 5px;">
-                    🕐 Show Real-Time Clock & Forecast
+                    🕐
                 </label>
             </div>
             <button id="screenshotBtn" class="screenshot-btn">📷 Take Screenshot</button>
@@ -14509,13 +14509,15 @@ function spawnOwls() {
                 ctx.fillText(char, charX, charY);
             }
 
-            // Draw AM/PM at the BOTTOM of the clock (not top-right)
-            ctx.font = 'bold 100px Arial'; // Doubled from 50px
+            // Draw AM/PM to the right of the clock time
+            const lastCharX = startTextX + ((timeText.length - 1) * charWidth);
+            ctx.font = 'bold 80px Arial'; // Slightly smaller than main digits
             ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity * 0.8})`;
-            ctx.fillText(ampm, clockCenterX, clockY + 180); // Below the clock
+            ctx.textAlign = 'left';
+            ctx.fillText(ampm, lastCharX + 100, clockY + 20); // To the right and slightly lower
 
-            // Draw weather forecast icons below clock (further down now)
-            const forecastY = clockY + 320; // Adjusted for larger clock
+            // Draw weather forecast icons below clock
+            const forecastY = clockY + 180; // Moved up since AM/PM is now to the right
             const iconSpacing = 120; // Slightly larger spacing
             const startX = clockCenterX - iconSpacing;
 
