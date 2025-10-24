@@ -1321,8 +1321,9 @@ let magicMushroom = null;
 let hadRainbow = false;
 let hadAnts = false
 let birdTrails = []; // Will store past positions of birds
-const MAX_TRAIL_LENGTH = 100; // How many past positions to remember  
+const MAX_TRAIL_LENGTH = 100; // How many past positions to remember
 let mushroomEffectSpeed = 0.03; // Control speed of mushroom mode effects
+let playingTheHits = false; // Flag to disable random chirps during playthehits performance
 
 // Rainbow variables
 let rainbowVisible = false;
@@ -6165,6 +6166,9 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
 
             // Emit a chirp with specific type
             chirp(type, intensity = 1.0) {
+                // Don't chirp during playthehits performance
+                if (playingTheHits) return;
+
                 const now = Date.now();
                 if (now - this.lastChirp < 1000) return; // Cooldown
 
@@ -13825,34 +13829,62 @@ function spawnOwls() {
                 return;
             }
 
+            // Check if already playing
+            if (playingTheHits) {
+                console.log("Already playing the hits! Wait for the current song to finish.");
+                return;
+            }
+
             // Melodic patterns (rhythm and note patterns inspired by songs)
             const melodies = [
                 // "Call Me Maybe" pattern - upbeat and catchy
-                { name: "Upbeat Pop", notes: [659, 587, 523, 587, 659, 698, 783], durations: [0.15, 0.15, 0.2, 0.15, 0.15, 0.2, 0.3] },
+                { name: "Call Me Maybe", notes: [659, 587, 523, 587, 659, 698, 783], durations: [0.15, 0.15, 0.2, 0.15, 0.15, 0.2, 0.3] },
                 // "Who Let the Dogs Out" pattern - rhythmic and repetitive
-                { name: "Call & Response", notes: [523, 523, 587, 659, 523, 523, 587, 659], durations: [0.12, 0.12, 0.12, 0.25, 0.12, 0.12, 0.12, 0.25] },
+                { name: "Who Let the Dogs Out", notes: [523, 523, 587, 659, 523, 523, 587, 659], durations: [0.12, 0.12, 0.12, 0.25, 0.12, 0.12, 0.12, 0.25] },
                 // "Sittin' On The Dock of the Bay" pattern - relaxed whistling
-                { name: "Whistling Blues", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                { name: "Sittin' On The Dock of the Bay", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
                 // "Me and Julio" pattern - playful and light
-                { name: "Playful Tune", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                { name: "Me and Julio Down by the Schoolyard", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.25] },
                 // "Young Folks" pattern - whistling melody
-                { name: "Indie Whistle", notes: [880, 783, 698, 783, 880, 987, 880], durations: [0.2, 0.15, 0.15, 0.2, 0.2, 0.25, 0.3] },
+                { name: "Young Folks", notes: [880, 783, 698, 783, 880, 987, 880], durations: [0.2, 0.15, 0.15, 0.2, 0.2, 0.25, 0.3] },
                 // "Pumped Up Kicks" pattern - mellow whistle
-                { name: "Mellow Groove", notes: [659, 698, 783, 698, 659, 587, 659], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                { name: "Pumped Up Kicks", notes: [659, 698, 783, 698, 659, 587, 659], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
                 // "Don't Worry Be Happy" pattern - cheerful whistling
-                { name: "Happy Whistle", notes: [523, 659, 783, 880, 783, 659, 523], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
+                { name: "Don't Worry Be Happy", notes: [523, 659, 783, 880, 783, 659, 523], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
                 // "Walk Like an Egyptian" pattern - quirky melody
-                { name: "Desert Walk", notes: [587, 523, 587, 698, 783, 698, 587], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
+                { name: "Walk Like an Egyptian", notes: [587, 523, 587, 698, 783, 698, 587], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
                 // "Whistle While You Work" pattern - classic Disney whistle
-                { name: "Work Song", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] }
+                { name: "Whistle While You Work", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] }
             ];
 
-            // Function to play a melody
-            function playMelody(melody, startTime = 0) {
-                console.log(`🐦 Bird chirping: ${melody.name}`);
-                let currentTime = audioContext.currentTime + startTime;
+            // Pick ONE random melody
+            const melody = melodies[Math.floor(Math.random() * melodies.length)];
+            console.log(`🎶 Playing: "${melody.name}"`);
 
-                for (let i = 0; i < melody.notes.length; i++) {
+            // Disable random chirping during performance
+            playingTheHits = true;
+
+            if (birds.length === 0) {
+                console.log("No birds in the garden to sing!");
+                playingTheHits = false;
+                return;
+            }
+
+            // Divide the melody among available birds
+            const availableBirds = birds.slice(0, Math.min(birds.length, melody.notes.length));
+            const notesPerBird = Math.ceil(melody.notes.length / availableBirds.length);
+
+            console.log(`🐦 ${availableBirds.length} birds will share the melody (${melody.notes.length} notes)`);
+
+            let currentTime = audioContext.currentTime + 0.2; // Small delay to start
+            let totalDuration = 0;
+
+            // Each bird gets a portion of the melody
+            availableBirds.forEach((bird, birdIndex) => {
+                const startNote = birdIndex * notesPerBird;
+                const endNote = Math.min(startNote + notesPerBird, melody.notes.length);
+
+                for (let i = startNote; i < endNote; i++) {
                     const freq = melody.notes[i];
                     const duration = melody.durations[i];
 
@@ -13873,28 +13905,22 @@ function spawnOwls() {
 
                     gain.gain.value = 0;
                     gain.gain.setValueAtTime(0, currentTime);
-                    gain.gain.linearRampToValueAtTime(0.15, currentTime + 0.01);
+                    gain.gain.linearRampToValueAtTime(0.18, currentTime + 0.01);
                     gain.gain.linearRampToValueAtTime(0, currentTime + duration);
 
                     osc.start(currentTime);
                     osc.stop(currentTime + duration + 0.01);
 
-                    currentTime += duration + 0.05; // Small gap between notes
+                    currentTime += duration + 0.08; // Small gap between notes
+                    totalDuration = currentTime - audioContext.currentTime;
                 }
-            }
+            });
 
-            // Assign different melodies to different birds
-            if (birds.length > 0) {
-                birds.slice(0, Math.min(birds.length, melodies.length)).forEach((bird, index) => {
-                    const delay = index * 1.5; // Stagger the start times
-                    playMelody(melodies[index % melodies.length], delay);
-                });
-                console.log(`🎶 ${Math.min(birds.length, melodies.length)} birds are singing the hits!`);
-            } else {
-                console.log("No birds in the garden to sing!");
-                // Play one melody anyway
-                playMelody(melodies[0], 0);
-            }
+            // Re-enable chirping after the song finishes
+            setTimeout(() => {
+                playingTheHits = false;
+                console.log("🎵 Song finished! Regular chirping resumed.");
+            }, totalDuration * 1000 + 500);
         };
 
         // Musical scales for bird chirps (frequencies in Hz)
