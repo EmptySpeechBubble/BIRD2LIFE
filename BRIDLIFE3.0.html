@@ -462,7 +462,7 @@
             <summary>💡 Tips & Strategies</summary>
             <ul>
                 <li><strong>Building a thriving ecosystem:</strong> Add food regularly but don't overfeed. Let birds find their own rhythm</li>
-                <li><strong>Nest success:</strong> Keep trees healthy, scatter twigs, minimize squirrel interference</li>
+                <li><strong>Nest success:</strong> Keep trees healthy, minimize squirrel interference</li>
                 <li><strong>Baby bird survival:</strong> Adult birds will feed babies automatically if food is available</li>
                 <li><strong>Species diversity:</strong> Different bird species have different behaviors - observe closely!</li>
                 <li><strong>Seasonal patterns:</strong> Watch how behavior changes with weather and time of day</li>
@@ -475,7 +475,6 @@
             <h3>🐦 Garden Residents</h3>
             <p><strong>Starting Birds:</strong> Bluebird, Cardinal, Canary, Sparrow, Finch</p>
             <p><strong>Special Visitors:</strong> Crows (when worm population exceeds 30), Owls (hunt rats at night, may deliver gameboy after day 30)</p>
-            <p><strong>Relax. Watch. Enjoy. 🌿</strong></p>
         </div>
     </div>
 
@@ -738,7 +737,40 @@ function activateMushroomMode() {
             debugLog("Control panel functionality restored");
             updateDebugVisuals(); // Update UI state
         }
-    } 
+    } else if (e.key === 'Escape') {
+        // Escape key handling
+        const instructionManual = document.getElementById('instructionManual');
+        const infoPanel = document.getElementById('infoPanel');
+        const toggleInfo = document.getElementById('toggleInfo');
+        const toggleManual = document.getElementById('toggleManual');
+
+        // First priority: close instruction manual if open
+        if (instructionManual && instructionManual.style.display === 'block') {
+            instructionManual.style.display = 'none';
+            if (toggleManual) toggleManual.textContent = '☐ 📖 Guide';
+            debugLog("Instruction manual closed with Escape");
+        }
+        // Second priority: close info panel if open
+        else if (infoPanel && infoPanel.style.display === 'block') {
+            infoPanel.style.display = 'none';
+            if (toggleInfo) toggleInfo.textContent = 'ℹ️ Show Info';
+            debugLog("Info panel closed with Escape");
+        }
+        // Third: hide the toggle button until next click
+        else if (toggleInfo && toggleInfo.style.display !== 'none') {
+            toggleInfo.style.display = 'none';
+            debugLog("Toggle info button hidden with Escape");
+        }
+    }
+});
+
+// Re-show toggle info button on any click if it's hidden
+document.addEventListener('click', (e) => {
+    const toggleInfo = document.getElementById('toggleInfo');
+    if (toggleInfo && toggleInfo.style.display === 'none') {
+        toggleInfo.style.display = 'block';
+        debugLog("Toggle info button shown again on click");
+    }
 });
 
 
@@ -15582,7 +15614,23 @@ if (toggleWindChimeBtn) {
     toggleWindChimeBtn.style.background = '#4CAF50'; // Green background
     
     debugLog("Wind chimes enabled with improved timer logic");
-} else {}
+} else {
+    // Turn OFF wind chimes
+    if (windChimeTimeout) {
+        if (typeof windChimeTimeout === 'number') {
+            clearTimeout(windChimeTimeout);
+        } else {
+            clearInterval(windChimeTimeout);
+        }
+        windChimeTimeout = null;
+    }
+
+    // Update button text
+    toggleWindChimeBtn.textContent = '🔔 Wind Chimes: OFF';
+    toggleWindChimeBtn.style.background = '#f44336'; // Red background
+
+    debugLog("Wind chimes disabled");
+}
         
         // Force a user interaction with audio context (needed for browsers)
         if (audioContext && audioContext.state === 'suspended') {
