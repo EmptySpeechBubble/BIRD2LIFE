@@ -1537,7 +1537,7 @@ let rainsCompleted = 0; // Track number of completed rain events (for pond forma
     RESTING: 75000,     // Increased from 60000
     BATHING: 25000,     // Unchanged
     FLYING: 10000,       // Reduced from 15000
-    HOPPING: 60000 
+    HOPPING: 90000      // Increased from 60000 - more ground chill time (1.5 minutes)
         };
         
         // Morning food spawn rates
@@ -5614,8 +5614,8 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                 // If there's a large food pile (5+ items), go to ground and flock
                 for (const cluster of foodClusters) {
                     if (cluster.count >= 5 && distance(this.x, this.y, cluster.x, cluster.y) < visionRadius * 1.5) {
-                        // Direct to ground near food cluster
-                        const groundY = canvas.height * GROUND_HEIGHT_RATIO + 20;
+                        // Direct to ground near food cluster - deeper into grass for more realistic ground behavior
+                        const groundY = canvas.height * GROUND_HEIGHT_RATIO + 40; // Increased from +20 to +40
                         this.path = [
                             { x: this.x, y: this.y },
                             { x: cluster.x + (Math.random() - 0.5) * 40, y: groundY }
@@ -7687,21 +7687,33 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                         this.velocity.x *= 0.97; // More damping
                         this.velocity.y *= 0.97; // More damping
 
-                        // NEW: Calm behavior - birds should land on ground when flying near it (10% chance)
+                        // NEW: Calm behavior - birds should land on ground when flying near it
                         const groundY = canvas.height * GROUND_HEIGHT_RATIO;
                         const distanceToGround = Math.abs(this.y - groundY);
 
-                        if (distanceToGround < 80 && Math.random() < 0.001) { // 10% chance when near ground, checked frequently
-                            // Land on ground and rest/hop
-                            const landX = this.x + (Math.random() - 0.5) * 50;
+                        if (distanceToGround < 80 && Math.random() < 0.002) { // Slightly increased frequency for more ground activity
+                            // Land on ground and rest/hop - prefer landing under trees
+                            let landX = this.x + (Math.random() - 0.5) * 50;
+
+                            // Check if there's a tree nearby to land under
+                            const nearbyTree = trees.find(tree =>
+                                Math.abs(tree.x - this.x) < 150 && tree.health > 30
+                            );
+
+                            if (nearbyTree && Math.random() < 0.7) { // 70% chance to prefer tree
+                                // Land under the tree for shade/shelter
+                                landX = nearbyTree.x + (Math.random() - 0.5) * 60;
+                                debugLog(`Bird choosing to land under tree for ground rest`);
+                            }
+
                             this.path = [
                                 { x: this.x, y: this.y },
-                                { x: landX, y: groundY + 20 }
+                                { x: landX, y: groundY + 40 } // Increased from +20 to +40
                             ];
                             this.pathIndex = 0;
                             this.intendToHop = true;
                             this.hopData = null;
-                            debugLog(`Bird landing on ground for calm behavior at (${landX}, ${groundY + 20})`);
+                            debugLog(`Bird landing on ground for calm behavior at (${landX}, ${groundY + 40})`);
                         }
 
                         // If we have a path, follow it
@@ -7719,17 +7731,17 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                                // If reached final waypoint, clear path
 if (this.pathIndex >= this.path.length) {
     // Check if we intended to hop
-    if (this.intendToHop && Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 20)) < 35) {
-        // Ensure we're on/below the ground line (can hop into grass)
-        this.y = canvas.height * GROUND_HEIGHT_RATIO + 20;
+    if (this.intendToHop && Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 40)) < 50) { // Increased tolerance
+        // Ensure we're on/below the ground line (can hop into grass) - deeper for more ground presence
+        this.y = canvas.height * GROUND_HEIGHT_RATIO + 40; // Increased from +20 to +40
         this.velocity = { x: 0, y: 0 }; // Full stop
-        
+
         // IMPORTANT: Transition to hopping state
         this.state = BIRD_STATES.HOPPING;
         this.stateTimer = 0;
         this.intendToHop = false;
         this.hopData = null; // Force fresh initialization
-        
+
         debugLog(`Bird reached ground and transitioning to hopping state at (${this.x}, ${this.y})`);
     } else {
         // Normal path completion or not close enough to ground
@@ -7850,14 +7862,14 @@ if (this.pathIndex >= this.path.length) {
 
                         case BIRD_STATES.HOPPING:
     // CRITICAL FIX: Immediately verify and enforce ground position (allow hopping below ground into grass)
-    if (Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 20)) > 25) {
-        debugLog(`Fixing bird position in hopping state: ${this.y} → ${canvas.height * GROUND_HEIGHT_RATIO + 20}`);
-        this.y = canvas.height * GROUND_HEIGHT_RATIO + 20;
+    if (Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 40)) > 35) { // Increased tolerance for deeper ground
+        debugLog(`Fixing bird position in hopping state: ${this.y} → ${canvas.height * GROUND_HEIGHT_RATIO + 40}`);
+        this.y = canvas.height * GROUND_HEIGHT_RATIO + 40; // Increased from +20 to +40
         this.velocity = { x: 0, y: 0 };
     }
 
-    // Define hopping ground level once to ensure consistency (below ground line for worms/branches)
-    const hoppingGroundY = canvas.height * GROUND_HEIGHT_RATIO + 20;
+    // Define hopping ground level once to ensure consistency (below ground line for worms/branches) - deeper for better ground presence
+    const hoppingGroundY = canvas.height * GROUND_HEIGHT_RATIO + 40; // Increased from +20 to +40
 
     // Only stay in hopping state for a reasonable duration
     if (this.stateTimer < BIRD_STATE_DURATION.HOPPING) {
@@ -7947,7 +7959,7 @@ if (this.pathIndex >= this.path.length) {
                 this.hopData.phase = "ground";
                 this.hopData.phaseTimer = 0;
                 this.hopData.lastX = this.x;
-                this.hopData.nextHopDelay = 800 + Math.random() * 800; // 1.5-3s ground time
+                this.hopData.nextHopDelay = 1500 + Math.random() * 1500; // 1.5-3s ground time (increased from 0.8-1.6s)
 
                 // Force ground position to prevent any drift
                 this.y = hoppingGroundY;
