@@ -292,11 +292,12 @@
         <div class="info-panel" id="infoPanel" style="display: none;">
             <h3>Garden Ecosystem</h3>
             <div id="stats"></div>
-            <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+            <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; display: flex; gap: 15px;">
                 <label style="cursor: pointer; user-select: none;" title="Show Real-Time Clock & Forecast">
                     <input type="checkbox" id="clockToggle" style="margin-right: 5px;">
                     🕐
                 </label>
+                <button id="diaryBtn" style="background: none; border: none; cursor: pointer; font-size: 18px; padding: 0;" title="Garden Diary">📖</button>
             </div>
             <button id="screenshotBtn" class="screenshot-btn">📷 Take Screenshot</button>
             <button id="manualBtn" class="manual-btn">📖 Guide & Features</button>
@@ -496,6 +497,35 @@
         </div>
     </div>
 
+    <!-- Garden Diary -->
+    <div id="gardenDiary" class="instruction-manual" style="display: none;">
+        <button class="close-btn" id="closeDiaryBtn">×</button>
+        <h2>📖 Garden Diary</h2>
+
+        <div class="section">
+            <p><em>A chronicle of life in your garden ecosystem.</em></p>
+            <p><strong>Day <span id="diaryDayCount">0</span></strong></p>
+        </div>
+
+        <div class="section">
+            <h3>📜 Recent Events</h3>
+            <div id="diaryEntries" style="max-height: 400px; overflow-y: auto; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                <p style="color: #999; font-style: italic;">Your garden story will appear here as events unfold...</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🐦 Bird Families</h3>
+            <div id="birdFamilies" style="max-height: 300px; overflow-y: auto; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                <p style="color: #999; font-style: italic;">Bird lineages will be tracked here...</p>
+            </div>
+        </div>
+
+        <div class="section philosophy">
+            <p><em>"Every garden tells a story. This is yours."</em></p>
+        </div>
+    </div>
+
     <script>
         // V38 // GAMEBOY BROUGHT BY OWL / 1BIT WINDOW LINK ADDED 
         //  - GROUND HOPPING wip // KING RAINBOWBIRD
@@ -625,8 +655,9 @@ function activateMushroomMode() {
             });
         }, i * 300);
     }
-    
+
     debugLog("🍄 Mushroom mode activated! Groovy!");
+    addDiaryEntry("The magic mushroom reveals psychedelic wonders! Reality becomes a rainbow.", 'special');
 }
 
 
@@ -1125,7 +1156,10 @@ function checkOwlGameboyDelivery() {
                     spawnGameboy(this.x, canvas.height * GROUND_HEIGHT_RATIO - 20, true);
                     gameboyOwlDelivered = true;
                     this.isDelivering = false;
-                    
+
+                    // Add diary entry for gameboy delivery
+                    addDiaryEntry("An owl delivered a mysterious gameboy from the skies!", 'special');
+
                     // Play a special sound if wind chimes enabled
                     if (windChimeEnabled && audioContext) {
                         const notes = ['C4', 'G4', 'C5'];
@@ -1430,6 +1464,21 @@ let rainsCompleted = 0; // Track number of completed rain events (for pond forma
         let clockEnabled = false;
         let weatherForecast = []; // Array of {type: 'rain'|'thunder'|'clear', time: timestamp}
         let nextWeatherEvents = []; // Next 3 upcoming events for display
+
+        // Garden Diary System
+        let diaryEntries = []; // Array of {day: number, event: string, timestamp: number, type: string}
+        let birdNames = []; // Pool of bird names
+        let birdFamilies = new Map(); // Map bird ID to family info {name, generation, parents}
+        let lastDiaryUpdate = 0;
+
+        // Bird name pools
+        const BIRD_NAME_POOL = [
+            'Ruby', 'Sky', 'Pepper', 'Sunny', 'Cloud', 'Storm', 'Willow', 'Cedar',
+            'Maple', 'Birch', 'Ash', 'Rowan', 'Luna', 'Sol', 'Star', 'Dawn',
+            'Dusk', 'River', 'Brook', 'Meadow', 'Forest', 'Sage', 'Basil', 'Rosemary',
+            'Jasper', 'Onyx', 'Pearl', 'Amber', 'Jade', 'Coral', 'Ivy', 'Fern',
+            'Thistle', 'Clover', 'Poppy', 'Daisy', 'Violet', 'Lily', 'Rose', 'Iris'
+        ];
         let windChimeSounds = [];
         let windChimeTimeout = null;
         let lastWindChimeTime = 0;
@@ -1919,6 +1968,11 @@ function createFlower(x, y) {
                             isThundering = Math.random() < LIGHTNING_CHANCE;
                             wasRaining = false; // Reset this flag
                             debugLog(`${isThundering ? "Thunderstorm" : "Rain"} started`);
+
+                            // Add diary entry for weather
+                            if (isThundering) {
+                                addDiaryEntry("A thunderstorm rolls in! Lightning crackles across the sky.", 'weather');
+                            }
                             
                             const rainDuration = 45000 + Math.random() * 30000; // 45-75 seconds
                             const rainStopTimer = setTimeout(() => {
@@ -1947,6 +2001,9 @@ if (rainsCompleted >= 5 && ponds.length === 0) {
     });
 
     debugLog(`Natural pond formed after ${rainsCompleted} rains at (${pondX}, ${pondY})`);
+
+    // Add diary entry for pond milestone
+    addDiaryEntry("A pond has formed in the garden! Koi and frogs move in.", 'milestone');
 
     // Spawn a couple of koi in the pond
     koi.push({
@@ -3399,6 +3456,15 @@ const sunsetType = Math.floor(simulationTime / dayNightDuration * 10) % 6; // Ch
                     this.readyForBabies = true;
                     this.condition = 100; // Reset condition when newly completed
                     debugLog(`Nest at (${this.x}, ${this.y}) is complete! Ready for babies!`);
+
+                    // Add diary entry for first few nests
+                    if (nests.filter(n => n.isComplete).length <= 3) {
+                        if (nests.filter(n => n.isComplete).length === 1) {
+                            addDiaryEntry("The first nest is complete! New life awaits.", 'nest');
+                        } else {
+                            addDiaryEntry("Another nest completed. The garden family grows.", 'nest');
+                        }
+                    }
                 }
                 
                 // Repair functionality - improve condition when maintained
@@ -7197,7 +7263,12 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                                     const baby = new BabyBird(this.myNest.x, this.myNest.y, this.birdType, this.myNest);
                                     babyBirds.push(baby);
                                     debugLog(`Baby bird created in nest at (${this.myNest.x}, ${this.myNest.y})`);
-                                    
+
+                                    // Register baby in lineage and create diary entry
+                                    const babyName = registerBabyBird(baby, this);
+                                    const parentName = getBirdName(this);
+                                    addDiaryEntry(`${babyName} was born! Parent: ${parentName}`, 'birth');
+
                                     // Alert birds to feed the baby with a slight delay
                                     setTimeout(() => alertBirdsToFeedBaby(baby), 1000);
                                     
@@ -11241,8 +11312,9 @@ function spawnMurderOfCrows() {
     
     crowVisitInProgress = true;
     crowVisitTimer = 0;
-    
+
     debugLog(`Murder of ${crowCount} crows has arrived!`);
+    addDiaryEntry(`The Great Worm Feast! A murder of ${crowCount} crows descended upon the garden.`, 'visitor');
 }
 
 // Make all crows leave
@@ -12111,6 +12183,9 @@ function createRainbow() {
 
      // ADD THIS LINE:
      hadRainbow = true;
+
+     // Add diary entry
+     addDiaryEntry("A beautiful rainbow arcs across the sky!", 'special');
     
     // Play a magical sound if wind chimes are enabled
     if (windChimeEnabled && audioContext) {
@@ -14547,6 +14622,164 @@ function spawnOwls() {
             }
         }
 
+        // ===== GARDEN DIARY SYSTEM =====
+
+        // Add a diary entry
+        function addDiaryEntry(event, type = 'general') {
+            const entry = {
+                day: dayNightCycleCount,
+                event: event,
+                timestamp: Date.now(),
+                type: type
+            };
+            diaryEntries.push(entry);
+
+            // Keep only last 50 entries
+            if (diaryEntries.length > 50) {
+                diaryEntries.shift();
+            }
+
+            updateDiaryDisplay();
+            debugLog(`Diary: ${event}`);
+        }
+
+        // Get or assign a name to a bird
+        function getBirdName(bird) {
+            if (!birdFamilies.has(bird.id)) {
+                // This is a new bird, assign a name
+                const baseName = BIRD_NAME_POOL[Math.floor(Math.random() * BIRD_NAME_POOL.length)];
+
+                // Check if name is already used, add suffix if needed
+                let finalName = baseName;
+                let suffix = 2;
+                const existingNames = Array.from(birdFamilies.values()).map(f => f.name);
+
+                while (existingNames.includes(finalName)) {
+                    finalName = `${baseName} ${suffix}`;
+                    suffix++;
+                }
+
+                birdFamilies.set(bird.id, {
+                    name: finalName,
+                    generation: 1,
+                    parents: null,
+                    birdType: bird.birdType.name
+                });
+            }
+
+            return birdFamilies.get(bird.id).name;
+        }
+
+        // Register a baby bird with parents
+        function registerBabyBird(baby, parent) {
+            if (!baby || !parent) return;
+
+            const parentInfo = birdFamilies.get(parent.id);
+            if (!parentInfo) {
+                // Parent doesn't have a name yet, give them one
+                getBirdName(parent);
+            }
+
+            const parentData = birdFamilies.get(parent.id);
+            const baseName = parentData.name.split(' ')[0]; // Get base name without suffix
+            const generation = parentData.generation + 1;
+
+            // Create generational name
+            let babyName = baseName;
+            if (generation === 2) {
+                babyName = `${baseName} Jr.`;
+            } else if (generation > 2) {
+                // Use roman numerals for generation 3+
+                const romanNumerals = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+                babyName = `${baseName} ${romanNumerals[Math.min(generation, 10)]}`;
+            }
+
+            birdFamilies.set(baby.id, {
+                name: babyName,
+                generation: generation,
+                parents: [parentData.name],
+                birdType: baby.birdType.name
+            });
+
+            return babyName;
+        }
+
+        // Update diary display
+        function updateDiaryDisplay() {
+            const diaryEntriesDiv = document.getElementById('diaryEntries');
+            const birdFamiliesDiv = document.getElementById('birdFamilies');
+            const diaryDayCount = document.getElementById('diaryDayCount');
+
+            if (!diaryEntriesDiv) return;
+
+            // Update day count
+            if (diaryDayCount) {
+                diaryDayCount.textContent = dayNightCycleCount;
+            }
+
+            // Update diary entries (newest first)
+            if (diaryEntries.length > 0) {
+                let entriesHTML = '';
+                const sortedEntries = [...diaryEntries].reverse();
+
+                sortedEntries.forEach(entry => {
+                    const icon = entry.type === 'birth' ? '🐣' :
+                                entry.type === 'nest' ? '🏠' :
+                                entry.type === 'weather' ? '⛈️' :
+                                entry.type === 'visitor' ? '🦅' :
+                                entry.type === 'special' ? '✨' :
+                                entry.type === 'milestone' ? '🎯' : '📝';
+
+                    entriesHTML += `<p style="margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px;">
+                        ${icon} <strong>Day ${entry.day}:</strong> ${entry.event}
+                    </p>`;
+                });
+
+                diaryEntriesDiv.innerHTML = entriesHTML;
+            }
+
+            // Update bird families
+            if (birdFamiliesDiv && birdFamilies.size > 0) {
+                let familiesHTML = '';
+                const familyGroups = new Map();
+
+                // Group birds by base name
+                for (const [id, info] of birdFamilies.entries()) {
+                    const baseName = info.name.split(' ')[0];
+                    if (!familyGroups.has(baseName)) {
+                        familyGroups.set(baseName, []);
+                    }
+                    familyGroups.get(baseName).push(info);
+                }
+
+                // Display families
+                for (const [baseName, members] of familyGroups.entries()) {
+                    if (members.length > 1) {
+                        // This is a lineage
+                        const sorted = members.sort((a, b) => a.generation - b.generation);
+                        familiesHTML += `<div style="margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 4px;">
+                            <strong>The ${baseName} Family</strong> (${sorted[0].birdType})
+                            <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.9em;">`;
+
+                        sorted.forEach(member => {
+                            const genText = member.generation === 1 ? '(Founder)' :
+                                          member.generation === 2 ? '(Child)' :
+                                          `(Gen ${member.generation})`;
+                            familiesHTML += `<li>${member.name} ${genText}</li>`;
+                        });
+
+                        familiesHTML += `</ul></div>`;
+                    }
+                }
+
+                if (familiesHTML) {
+                    birdFamiliesDiv.innerHTML = familiesHTML;
+                } else {
+                    birdFamiliesDiv.innerHTML = '<p style="color: #999; font-style: italic;">Bird lineages will appear as families grow...</p>';
+                }
+            }
+        }
+
         function updateAndDraw(timestamp) {
     if (!animationRunning) return;
 
@@ -15297,6 +15530,36 @@ if (antHill) {
         clockToggle.addEventListener('change', () => {
             clockEnabled = clockToggle.checked;
             debugLog(`Clock display ${clockEnabled ? 'enabled' : 'disabled'}`);
+        });
+    }
+
+    // Garden Diary handlers
+    const diaryBtn = document.getElementById('diaryBtn');
+    const gardenDiary = document.getElementById('gardenDiary');
+    const closeDiaryBtn = document.getElementById('closeDiaryBtn');
+
+    if (diaryBtn && gardenDiary) {
+        diaryBtn.addEventListener('click', () => {
+            gardenDiary.style.display = 'block';
+            updateDiaryDisplay();
+            debugLog("Garden diary opened");
+        });
+    }
+
+    if (closeDiaryBtn && gardenDiary) {
+        closeDiaryBtn.addEventListener('click', () => {
+            gardenDiary.style.display = 'none';
+            debugLog("Garden diary closed");
+        });
+    }
+
+    // Close diary when clicking outside
+    if (gardenDiary) {
+        gardenDiary.addEventListener('click', (e) => {
+            if (e.target === gardenDiary) {
+                gardenDiary.style.display = 'none';
+                debugLog("Garden diary closed (clicked outside)");
+            }
         });
     }
 
