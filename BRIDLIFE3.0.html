@@ -976,10 +976,62 @@ function updateBirdTrails() {
     </ul>
     <strong>Time:</strong> ${timeOfDay < 1 ? 'Day' : 'Night'} (${displayHour12}:${minutes.toString().padStart(2, '0')})<br>
     <strong>Weather:</strong> ${isRaining ? (isThundering ? 'Thunderstorm' : 'Raining') : 'Clear'}<br>
+    <strong>Forecast:</strong> <span id="forecast"></span><br>
     <strong>Days Elapsed:</strong> ${dayNightCycleCount}<br>
     <strong>Rainbows Seen:</strong> ${rainbowsShown}
 `;
     }
+
+        // Update forecast every minute
+        function updateForecast() {
+            const forecastSpan = document.getElementById('forecast');
+            if (!forecastSpan) return;
+
+            const now = Date.now();
+            const forecast = [];
+
+            // Generate forecast for next 3 minutes
+            for (let i = 1; i <= 3; i++) {
+                const minuteTime = now + (i * 60000); // i minutes from now
+                let emoji = '☀️'; // Default sunny
+
+                // Check if currently raining
+                if (isRaining) {
+                    const rainEndTime = nextRainTime + rainDuration;
+                    if (minuteTime <= rainEndTime) {
+                        emoji = isThundering ? '⛈️' : '🌧️';
+                    }
+                }
+                // Check if rain will start before this minute
+                else if (nextRainTime && minuteTime >= nextRainTime) {
+                    const rainEndTime = nextRainTime + rainDuration;
+                    if (minuteTime <= rainEndTime) {
+                        emoji = '🌧️';
+                    }
+                }
+                // Check for clouds building up
+                else if (nextRainTime && minuteTime >= (nextRainTime - 15000)) {
+                    emoji = '☁️';
+                }
+
+                forecast.push(emoji);
+            }
+
+            forecastSpan.textContent = forecast.join(' ');
+        }
+
+        // Update forecast every minute
+        let lastForecastUpdate = 0;
+        setInterval(() => {
+            const now = Date.now();
+            if (now - lastForecastUpdate >= 60000) { // Every 60 seconds
+                updateForecast();
+                lastForecastUpdate = now;
+            }
+        }, 1000);
+
+        // Initial forecast update
+        updateForecast();
 
 // Gameboy object and tracking variables
 let gameboy = null;
@@ -1430,6 +1482,8 @@ let rainbowsShown = 0; // Track number of rainbows that have appeared
 let rainsCompleted = 0; // Track number of completed rain events (for pond formation)
 let playingTheHits = false; // Flag to disable random chirps during playthehits performance
 let isMuted = false; // Track mute state globally
+let nextRainTime = null; // Track when next rain is scheduled
+let rainDuration = 0; // How long current/next rain will last
         
         // Wind Chime Sound Effect System
         let windChimeEnabled = false;
@@ -1908,8 +1962,10 @@ function createFlower(x, y) {
         function scheduleRain() {
           // Much less frequent rain
             const nextRainDelay = 480000 + Math.random() * 300000; // 8-13 minutes between rains (doubled from 4-7)
+            nextRainTime = Date.now() + nextRainDelay; // Track when rain is scheduled
             const rainTimer = setTimeout(() => {
                 if (Math.random() < RAIN_PROBABILITY) {
+                    nextRainTime = Date.now(); // Rain is starting now
                     // Add cloud buildup before rain starts
                     cloudCover = 0;
                     const cloudBuildupDuration = 15000; // 15 seconds
@@ -1922,8 +1978,8 @@ function createFlower(x, y) {
                             isThundering = Math.random() < LIGHTNING_CHANCE;
                             wasRaining = false; // Reset this flag
                             debugLog(`${isThundering ? "Thunderstorm" : "Rain"} started`);
-                            
-                            const rainDuration = 45000 + Math.random() * 30000; // 45-75 seconds
+
+                            rainDuration = 45000 + Math.random() * 30000; // 45-75 seconds
                             const rainStopTimer = setTimeout(() => {
                                 isRaining = false;
 isThundering = false;
