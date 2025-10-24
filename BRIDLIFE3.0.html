@@ -293,12 +293,12 @@
             <h3>Garden Ecosystem</h3>
             <div id="stats"></div>
             <button id="screenshotBtn" class="screenshot-btn">📷 Take Screenshot</button>
-            <button id="manualBtn" class="manual-btn">📖 Guide & Features</button>
             <button id="muteBtn" class="mute-btn">🔊 Mute</button>
         </div>
         <!-- Add missing toggle buttons -->
         <button id="toggleInfo" class="toggle-panel">ℹ️ Show Info</button>
-        <button id="toggleMushroom" class="toggle-panel" style="display: none; top: 60px; background-color: #f8f8f8;">🍄 Mushroom Mode</button>
+        <button id="toggleManual" class="toggle-panel" style="top: 50px;">☐ 📖 Guide</button>
+        <button id="toggleMushroom" class="toggle-panel" style="display: none; top: 110px; background-color: #f8f8f8;">🍄 Mushroom Mode</button>
        
       
         <div class="control-panel" id="controlPanel">
@@ -472,7 +472,9 @@
         </details>
 
         <div class="section philosophy">
-            <p><em>"The garden is most beautiful when observed, not controlled. Let it breathe. Let it live. You are a guest in their world."</em></p>
+            <h3>🐦 Garden Residents</h3>
+            <p><strong>Starting Birds:</strong> Bluebird, Cardinal, Canary, Sparrow, Finch</p>
+            <p><strong>Special Visitors:</strong> Crows (when worm population exceeds 30), Owls (hunt rats at night, may deliver gameboy after day 30)</p>
             <p><strong>Relax. Watch. Enjoy. 🌿</strong></p>
         </div>
     </div>
@@ -940,7 +942,7 @@ function updateBirdTrails() {
         <li>Food: ${foodItems.length}</li>
         <li>Flowers: ${flowers.length} / ${maxFlowersEver}</li>
     </ul>
-    <strong>Time:</strong> ${timeOfDay < 1 ? 'Day' : 'Night'} (${displayHour12}:${minutes.toString().padStart(2, '0')} ${amPm})<br>
+    <strong>Time:</strong> ${timeOfDay < 1 ? 'Day' : 'Night'} (${displayHour12}:${minutes.toString().padStart(2, '0')})<br>
     <strong>Weather:</strong> ${isRaining ? (isThundering ? 'Thunderstorm' : 'Raining') : 'Clear'}<br>
     <strong>Days Elapsed:</strong> ${dayNightCycleCount}<br>
     <strong>Rainbows Seen:</strong> ${rainbowsShown}
@@ -14778,20 +14780,28 @@ if (antHill) {
     }
 
     // Instruction manual toggle
-    const manualBtn = document.getElementById('manualBtn');
+    const toggleManual = document.getElementById('toggleManual');
     const instructionManual = document.getElementById('instructionManual');
     const closeManualBtn = document.getElementById('closeManualBtn');
 
-    if (manualBtn && instructionManual) {
-        manualBtn.addEventListener('click', () => {
-            instructionManual.style.display = 'block';
-            debugLog("Instruction manual opened");
+    if (toggleManual && instructionManual) {
+        toggleManual.addEventListener('click', () => {
+            if (instructionManual.style.display === 'none' || instructionManual.style.display === '') {
+                instructionManual.style.display = 'block';
+                toggleManual.textContent = '☑ 📖 Guide';
+                debugLog("Instruction manual opened");
+            } else {
+                instructionManual.style.display = 'none';
+                toggleManual.textContent = '☐ 📖 Guide';
+                debugLog("Instruction manual closed");
+            }
         });
     }
 
     if (closeManualBtn && instructionManual) {
         closeManualBtn.addEventListener('click', () => {
             instructionManual.style.display = 'none';
+            if (toggleManual) toggleManual.textContent = '☐ 📖 Guide';
             debugLog("Instruction manual closed");
         });
     }
@@ -14801,6 +14811,7 @@ if (antHill) {
         instructionManual.addEventListener('click', (e) => {
             if (e.target === instructionManual) {
                 instructionManual.style.display = 'none';
+                if (toggleManual) toggleManual.textContent = '☐ 📖 Guide';
                 debugLog("Instruction manual closed (clicked outside)");
             }
         });
