@@ -455,12 +455,23 @@
         </details>
 
         <details class="detail-section">
+            <summary>📖 Garden Diary</summary>
+            <ul>
+                <li><strong>Auto-Generated Story:</strong> Click the 📖 button in info panel to view your garden's history</li>
+                <li><strong>Event Chronicle:</strong> Major moments automatically recorded (births, nests, weather, visitors)</li>
+                <li><strong>Bird Lineages:</strong> Birds receive names and track family generations (Ruby → Ruby Jr. → Ruby III)</li>
+                <li><strong>Timeline View:</strong> See your garden's story unfold day by day</li>
+                <li><strong>Family Trees:</strong> Watch bird families grow across generations</li>
+                <li><strong>Milestone Tracking:</strong> First nest, pond formation, special events recorded</li>
+            </ul>
+        </details>
+
+        <details class="detail-section">
             <summary>🎮 Special Features & Easter Eggs</summary>
             <ul>
-                <li><strong>Real-Time Clock & Forecast:</strong> Toggle in info panel to display a large transparent clock in the sky showing your real-world time, plus a 3-icon weather forecast. Birds can even perch on the clock numbers!</li>
+                <li><strong>Real-Time Clock & Forecast:</strong> Toggle in info panel for a large transparent 24-hour clock with weather forecast. Birds perch on numbers! Clock chimes hourly with different melodies.</li>
                 <li><strong>Gameboy:</strong> After day 30, an owl may deliver a magical gameboy. Click it to visit a 1-bit window game!</li>
                 <li><strong>Mushroom Mode:</strong> Psychedelic visual mode with rainbow colors and bird trails. Find the magic mushroom to unlock!</li>
-                <li><strong>Play the Hits:</strong> Hidden console command 'playthehits()' makes birds chirp melodic patterns inspired by popular songs</li>
                 <li><strong>Scarecrow:</strong> Birds avoid scarecrows. Stays for 1 day/night cycle</li>
                 <li><strong>Butterflies:</strong> Flutter peacefully through the garden near flowers</li>
                 <li><strong>Screenshots:</strong> Capture special moments with the 📷 button</li>
@@ -483,11 +494,11 @@
         <details class="detail-section">
             <summary>📋 Recent Major Updates</summary>
             <ul>
-                <li><strong>Real-Time Clock & Weather Forecast (Latest):</strong> Added toggleable clock display in the sky showing browser time with 3-icon weather forecast. Birds can now perch on clock numbers! Includes max history tracking for ponds, frogs, koi, and birdhouses.</li>
-                <li><strong>Musical Bird Performance System:</strong> Birds can now sing melodic patterns with 'playthehits()' console command, featuring 9 popular song melodies. Birds share the melody and perform together while regular chirping is paused.</li>
-                <li><strong>Enhanced Water Ecosystem:</strong> Improved pond ripple rendering with clipping boundaries, frogs now intelligently jump toward nearby ponds, twigs in ponds flatten for frogs to use (Frogger reference), and squirrels can forage below ground level.</li>
-                <li><strong>Advanced Bird AI Behaviors:</strong> Birds now exhibit ground flocking behavior around large food piles (5+ items), calm landing behavior when flying near ground, better food cluster detection, and enhanced perching decisions.</li>
-                <li><strong>Mushroom Mode Enhancements:</strong> Ants now display rainbow colors in mushroom mode, improved visual effects throughout the ecosystem, and better integration with all game elements for a cohesive psychedelic experience.</li>
+                <li><strong>Hourly Musical Chimes (Latest):</strong> When clock is enabled, birds sing a different melody every hour from a rotating playlist of 24 songs. No repeats until all 24 are played!</li>
+                <li><strong>Garden Diary System:</strong> Complete narrative tracking with auto-generated story entries, bird naming system with 80 names (nature + people), family lineage tracking across generations, and timeline view of major events.</li>
+                <li><strong>24-Hour Clock Display:</strong> Clock now shows 24-hour format without AM/PM, double-sized for better visibility. Birds can perch on the massive numbers, which become more opaque when occupied.</li>
+                <li><strong>Enhanced Ground Behaviors:</strong> Birds now land deeper into grass (40px below ground line), spend 50% more time on ground (90 seconds), and prefer resting under trees. More peaceful, natural ground activity.</li>
+                <li><strong>Real-Time Clock & Weather Forecast:</strong> Large transparent clock in the sky with 3-icon weather forecast. Birds perch on clock numbers! Includes max history tracking for ponds, frogs, koi, and birdhouses.</li>
             </ul>
         </details>
 
@@ -1464,6 +1475,9 @@ let rainsCompleted = 0; // Track number of completed rain events (for pond forma
         let clockEnabled = false;
         let weatherForecast = []; // Array of {type: 'rain'|'thunder'|'clear', time: timestamp}
         let nextWeatherEvents = []; // Next 3 upcoming events for display
+        let lastHourChimed = -1; // Track last hour that played a melody
+        let hourlyMelodyPlaylist = []; // Shuffled playlist of 24 melodies
+        let melodyPlaylistIndex = 0; // Current position in playlist
 
         // Garden Diary System
         let diaryEntries = []; // Array of {day: number, event: string, timestamp: number, type: string}
@@ -1471,13 +1485,20 @@ let rainsCompleted = 0; // Track number of completed rain events (for pond forma
         let birdFamilies = new Map(); // Map bird ID to family info {name, generation, parents}
         let lastDiaryUpdate = 0;
 
-        // Bird name pools
+        // Bird name pools (nature names + normal people names)
         const BIRD_NAME_POOL = [
+            // Nature-inspired names
             'Ruby', 'Sky', 'Pepper', 'Sunny', 'Cloud', 'Storm', 'Willow', 'Cedar',
             'Maple', 'Birch', 'Ash', 'Rowan', 'Luna', 'Sol', 'Star', 'Dawn',
             'Dusk', 'River', 'Brook', 'Meadow', 'Forest', 'Sage', 'Basil', 'Rosemary',
             'Jasper', 'Onyx', 'Pearl', 'Amber', 'Jade', 'Coral', 'Ivy', 'Fern',
-            'Thistle', 'Clover', 'Poppy', 'Daisy', 'Violet', 'Lily', 'Rose', 'Iris'
+            'Thistle', 'Clover', 'Poppy', 'Daisy', 'Violet', 'Lily', 'Rose', 'Iris',
+            // Normal/office/real-life people names
+            'Alex', 'Sam', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Quinn',
+            'Charlie', 'Jamie', 'Blake', 'Drew', 'Parker', 'Avery', 'Reese', 'Harper',
+            'Elliot', 'Skylar', 'Peyton', 'Cameron', 'Dakota', 'Rowan', 'Sage', 'River',
+            'Finley', 'Hayden', 'Logan', 'Ryan', 'Jesse', 'Kelly', 'Terry', 'Robin',
+            'Pat', 'Chris', 'Nico', 'Ash', 'Jules', 'Max', 'Lee', 'Ray'
         ];
         let windChimeSounds = [];
         let windChimeTimeout = null;
@@ -13988,7 +14009,37 @@ function spawnOwls() {
                 // "Walk Like an Egyptian" pattern - quirky melody
                 { name: "Walk Like an Egyptian", notes: [587, 523, 587, 698, 783, 698, 587], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
                 // "Whistle While You Work" pattern - classic Disney whistle
-                { name: "Whistle While You Work", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] }
+                { name: "Whistle While You Work", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] },
+                // "Happy" by Pharrell - upbeat and cheerful
+                { name: "Happy", notes: [659, 659, 698, 783, 880, 783, 698], durations: [0.15, 0.15, 0.2, 0.2, 0.3, 0.2, 0.3] },
+                // "Somewhere Over the Rainbow" - classic dreamy melody
+                { name: "Somewhere Over the Rainbow", notes: [523, 659, 783, 880, 987, 880, 783, 659], durations: [0.2, 0.2, 0.25, 0.3, 0.3, 0.25, 0.2, 0.3] },
+                // "Lean on Me" - soulful and warm
+                { name: "Lean on Me", notes: [587, 659, 698, 659, 587, 523], durations: [0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                // "Three Little Birds" - reggae feel
+                { name: "Three Little Birds", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.2, 0.25, 0.2, 0.2, 0.3] },
+                // "What a Wonderful World" - gentle and sweet
+                { name: "What a Wonderful World", notes: [523, 587, 659, 783, 880, 783, 659], durations: [0.25, 0.2, 0.25, 0.3, 0.3, 0.25, 0.3] },
+                // "Let It Be" - contemplative melody
+                { name: "Let It Be", notes: [659, 698, 783, 880, 783, 698, 659], durations: [0.25, 0.2, 0.25, 0.35, 0.25, 0.2, 0.3] },
+                // "Here Comes the Sun" - bright and hopeful
+                { name: "Here Comes the Sun", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
+                // "Stand by Me" - steady and comforting
+                { name: "Stand by Me", notes: [523, 523, 587, 659, 698, 659, 587], durations: [0.2, 0.2, 0.2, 0.25, 0.3, 0.25, 0.3] },
+                // "Blackbird" - delicate picking pattern
+                { name: "Blackbird", notes: [698, 783, 880, 987, 880, 783, 698], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.3] },
+                // "My Girl" - classic soul melody
+                { name: "My Girl", notes: [659, 698, 783, 698, 659, 587, 523], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                // "Isn't She Lovely" - Stevie Wonder classic
+                { name: "Isn't She Lovely", notes: [587, 659, 698, 783, 880, 783, 698, 659], durations: [0.15, 0.15, 0.2, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                // "Can't Help Falling in Love" - romantic melody
+                { name: "Can't Help Falling in Love", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.25, 0.3, 0.25, 0.25, 0.2, 0.3] },
+                // "Yellow Submarine" - playful Beatles tune
+                { name: "Yellow Submarine", notes: [523, 523, 659, 659, 698, 698, 783], durations: [0.15, 0.15, 0.15, 0.15, 0.2, 0.2, 0.3] },
+                // "Octopus's Garden" - whimsical underwater feel
+                { name: "Octopus's Garden", notes: [587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] },
+                // "You Are My Sunshine" - sweet and simple
+                { name: "You Are My Sunshine", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] }
             ];
 
             // Pick ONE random melody
@@ -14056,6 +14107,140 @@ function spawnOwls() {
                 console.log("🎵 Song finished! Regular chirping resumed.");
             }, totalDuration * 1000 + 500);
         };
+
+        // Get all 24 melodies for hourly chimes
+        function getAllMelodies() {
+            return [
+                { name: "Call Me Maybe", notes: [659, 587, 523, 587, 659, 698, 783], durations: [0.15, 0.15, 0.2, 0.15, 0.15, 0.2, 0.3] },
+                { name: "Who Let the Dogs Out", notes: [523, 523, 587, 659, 523, 523, 587, 659], durations: [0.12, 0.12, 0.12, 0.25, 0.12, 0.12, 0.12, 0.25] },
+                { name: "Sittin' On The Dock of the Bay", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                { name: "Me and Julio Down by the Schoolyard", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                { name: "Young Folks", notes: [880, 783, 698, 783, 880, 987, 880], durations: [0.2, 0.15, 0.15, 0.2, 0.2, 0.25, 0.3] },
+                { name: "Pumped Up Kicks", notes: [659, 698, 783, 698, 659, 587, 659], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                { name: "Don't Worry Be Happy", notes: [523, 659, 783, 880, 783, 659, 523], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
+                { name: "Walk Like an Egyptian", notes: [587, 523, 587, 698, 783, 698, 587], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
+                { name: "Whistle While You Work", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] },
+                { name: "Happy", notes: [659, 659, 698, 783, 880, 783, 698], durations: [0.15, 0.15, 0.2, 0.2, 0.3, 0.2, 0.3] },
+                { name: "Somewhere Over the Rainbow", notes: [523, 659, 783, 880, 987, 880, 783, 659], durations: [0.2, 0.2, 0.25, 0.3, 0.3, 0.25, 0.2, 0.3] },
+                { name: "Lean on Me", notes: [587, 659, 698, 659, 587, 523], durations: [0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                { name: "Three Little Birds", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.2, 0.25, 0.2, 0.2, 0.3] },
+                { name: "What a Wonderful World", notes: [523, 587, 659, 783, 880, 783, 659], durations: [0.25, 0.2, 0.25, 0.3, 0.3, 0.25, 0.3] },
+                { name: "Let It Be", notes: [659, 698, 783, 880, 783, 698, 659], durations: [0.25, 0.2, 0.25, 0.35, 0.25, 0.2, 0.3] },
+                { name: "Here Comes the Sun", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
+                { name: "Stand by Me", notes: [523, 523, 587, 659, 698, 659, 587], durations: [0.2, 0.2, 0.2, 0.25, 0.3, 0.25, 0.3] },
+                { name: "Blackbird", notes: [698, 783, 880, 987, 880, 783, 698], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.3] },
+                { name: "My Girl", notes: [659, 698, 783, 698, 659, 587, 523], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                { name: "Isn't She Lovely", notes: [587, 659, 698, 783, 880, 783, 698, 659], durations: [0.15, 0.15, 0.2, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                { name: "Can't Help Falling in Love", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.25, 0.3, 0.25, 0.25, 0.2, 0.3] },
+                { name: "Yellow Submarine", notes: [523, 523, 659, 659, 698, 698, 783], durations: [0.15, 0.15, 0.15, 0.15, 0.2, 0.2, 0.3] },
+                { name: "Octopus's Garden", notes: [587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] },
+                { name: "You Are My Sunshine", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] }
+            ];
+        }
+
+        // Shuffle array using Fisher-Yates algorithm
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Initialize hourly melody playlist
+        function initializeHourlyPlaylist() {
+            hourlyMelodyPlaylist = shuffleArray(getAllMelodies());
+            melodyPlaylistIndex = 0;
+            debugLog("Hourly melody playlist initialized and shuffled");
+        }
+
+        // Play hourly chime melody
+        function playHourlyChime() {
+            if (!clockEnabled || !audioContext || playingTheHits) return;
+            if (typeof isMuted !== 'undefined' && isMuted) return;
+
+            // Get next melody from playlist
+            const melody = hourlyMelodyPlaylist[melodyPlaylistIndex];
+            melodyPlaylistIndex = (melodyPlaylistIndex + 1) % hourlyMelodyPlaylist.length;
+
+            // If we've cycled through all 24, reshuffle
+            if (melodyPlaylistIndex === 0) {
+                hourlyMelodyPlaylist = shuffleArray(getAllMelodies());
+                debugLog("Reshuffled hourly melody playlist");
+            }
+
+            debugLog(`🕐 Hourly chime: "${melody.name}"`);
+
+            // Disable random chirping during chime
+            playingTheHits = true;
+
+            if (birds.length === 0) {
+                playingTheHits = false;
+                return;
+            }
+
+            // Use available birds to play the melody
+            const availableBirds = birds.slice(0, Math.min(birds.length, melody.notes.length));
+            const notesPerBird = Math.ceil(melody.notes.length / availableBirds.length);
+
+            let currentTime = audioContext.currentTime + 0.1;
+            let totalDuration = 0;
+
+            availableBirds.forEach((bird, birdIndex) => {
+                const startNote = birdIndex * notesPerBird;
+                const endNote = Math.min(startNote + notesPerBird, melody.notes.length);
+
+                for (let i = startNote; i < endNote; i++) {
+                    const freq = melody.notes[i];
+                    const duration = melody.durations[i];
+
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    filter.type = 'bandpass';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 3;
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+
+                    gain.gain.value = 0;
+                    gain.gain.setValueAtTime(0, currentTime);
+                    gain.gain.linearRampToValueAtTime(0.15, currentTime + 0.01); // Slightly quieter than manual playthehits
+                    gain.gain.linearRampToValueAtTime(0, currentTime + duration);
+
+                    osc.start(currentTime);
+                    osc.stop(currentTime + duration + 0.01);
+
+                    currentTime += duration + 0.08;
+                    totalDuration = currentTime - audioContext.currentTime;
+                }
+            });
+
+            // Re-enable chirping after chime
+            setTimeout(() => {
+                playingTheHits = false;
+            }, totalDuration * 1000 + 300);
+        }
+
+        // Check for hour change and play chime
+        function checkHourlyChime() {
+            if (!clockEnabled) return;
+
+            const now = new Date();
+            const currentHour = now.getHours();
+
+            if (currentHour !== lastHourChimed) {
+                lastHourChimed = currentHour;
+                playHourlyChime();
+            }
+        }
 
         // Musical scales for bird chirps (frequencies in Hz)
         const BIRD_SCALES = {
@@ -14503,10 +14688,9 @@ function spawnOwls() {
             const minutes = now.getMinutes();
             const seconds = now.getSeconds();
 
-            // Format time
-            const hour12 = hours % 12 || 12;
+            // Format time (24-hour format)
+            const hourStr = hours.toString().padStart(2, '0');
             const minuteStr = minutes.toString().padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
 
             // Large transparent clock in upper sky - DOUBLED SIZE
             const clockY = canvas.height * 0.2;
@@ -14528,7 +14712,7 @@ function spawnOwls() {
             ctx.textBaseline = 'middle';
 
             // Build the time string and draw each character individually
-            const timeText = `${hour12}:${minuteStr}`;
+            const timeText = `${hourStr}:${minuteStr}`;
             const charWidth = 160; // approximate width per character (doubled from 80)
             const totalWidth = timeText.length * charWidth;
             const startTextX = clockCenterX - (totalWidth / 2);
@@ -14584,15 +14768,8 @@ function spawnOwls() {
                 ctx.fillText(char, charX, charY);
             }
 
-            // Draw AM/PM to the right of the clock time
-            const lastCharX = startTextX + ((timeText.length - 1) * charWidth);
-            ctx.font = 'bold 80px Arial'; // Slightly smaller than main digits
-            ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity * 0.8})`;
-            ctx.textAlign = 'left';
-            ctx.fillText(ampm, lastCharX + 100, clockY + 20); // To the right and slightly lower
-
             // Draw weather forecast icons below clock
-            const forecastY = clockY + 180; // Moved up since AM/PM is now to the right
+            const forecastY = clockY + 180;
             const iconSpacing = 120; // Slightly larger spacing
             const startX = clockCenterX - iconSpacing;
 
@@ -15006,6 +15183,7 @@ for (let i = owls.length - 1; i >= 0; i--) {
     if (clockEnabled) {
         updateWeatherForecast();
         drawClock();
+        checkHourlyChime(); // Check if it's a new hour and play melody
     }
 
     // ===== DEBUG LAYER (very top) =====
@@ -16330,6 +16508,9 @@ canvas.addEventListener('touchstart', (e) => {
 
             // Generate initial weather forecast
             generateWeatherForecast();
+
+            // Initialize hourly melody playlist
+            initializeHourlyPlaylist();
 
             // Setup event handlers
             setupEventHandlers();
