@@ -452,7 +452,6 @@
                 <li><strong>Gameboy:</strong> After day 30, an owl may deliver a magical gameboy. Click it to visit a 1-bit window game!</li>
                 <li><strong>Mushroom Mode:</strong> Psychedelic visual mode with rainbow colors and bird trails. Find the magic mushroom to unlock!</li>
                 <li><strong>Scarecrow:</strong> Birds avoid scarecrows. Stays for 1 day/night cycle</li>
-                <li><strong>Wind chimes:</strong> Create soothing musical sounds in the breeze</li>
                 <li><strong>Butterflies:</strong> Flutter peacefully through the garden near flowers</li>
                 <li><strong>Screenshots:</strong> Capture special moments with the 📷 button</li>
             </ul>
@@ -1322,8 +1321,9 @@ let magicMushroom = null;
 let hadRainbow = false;
 let hadAnts = false
 let birdTrails = []; // Will store past positions of birds
-const MAX_TRAIL_LENGTH = 100; // How many past positions to remember  
+const MAX_TRAIL_LENGTH = 100; // How many past positions to remember
 let mushroomEffectSpeed = 0.03; // Control speed of mushroom mode effects
+let playingTheHits = false; // Flag to disable random chirps during playthehits performance
 
 // Rainbow variables
 let rainbowVisible = false;
@@ -2253,6 +2253,12 @@ if (isTabVisible) {
                 ctx.fill();
 
                 // Draw ripples - limit to visible ripples for performance
+                // Apply clipping to keep ripples within pond boundaries
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(pond.x, drawY, pond.width, pond.height, 0, 0, Math.PI * 2);
+                ctx.clip();
+
                 const visibleRipples = pond.ripples.slice(0, 5);
                 visibleRipples.forEach(ripple => {
                     const opacity = 1 - ripple.age / ripple.maxAge;
@@ -2262,6 +2268,8 @@ if (isTabVisible) {
                     ctx.ellipse(ripple.x, ripple.y, ripple.size, ripple.size * 0.5, 0, 0, Math.PI * 2);
                     ctx.stroke();
                 });
+
+                ctx.restore();
             });
         }
 
@@ -2488,15 +2496,38 @@ fish.y = pondCenterY + Math.sin(fish.swimAngle * 2) * radius * 0.4;
                     }
                 }
 
-                // Jump occasionally
-                if (!frog.jumping && Math.random() < 0.002) {
-                    frog.jumping = true;
-                    frog.jumpTimer = 0;
-                    frog.jumpStartX = frog.x;
-                    frog.jumpStartY = frog.y;
-                    frog.jumpTargetX = frog.x + (Math.random() - 0.5) * 100;
-                    frog.jumpTargetY = canvas.height * GROUND_HEIGHT_RATIO;
-                    debugLog(`Frog jumping from (${frog.x.toFixed(0)}, ${frog.y.toFixed(0)})`);
+                // Check for nearby ponds and jump toward them
+                if (!frog.jumping && Math.random() < 0.003) {
+                    let nearestPond = null;
+                    let nearestDist = Infinity;
+
+                    for (const pond of ponds) {
+                        const dist = distance(frog.x, frog.y, pond.x, pond.y + pond.height);
+                        if (dist < nearestDist && dist < 200) {
+                            nearestDist = dist;
+                            nearestPond = pond;
+                        }
+                    }
+
+                    if (nearestPond && Math.random() < 0.4) {
+                        // Jump toward pond
+                        frog.jumping = true;
+                        frog.jumpTimer = 0;
+                        frog.jumpStartX = frog.x;
+                        frog.jumpStartY = frog.y;
+                        frog.jumpTargetX = nearestPond.x + (Math.random() - 0.5) * nearestPond.width * 0.5;
+                        frog.jumpTargetY = nearestPond.y + nearestPond.height; // Jump into pond
+                        debugLog(`Frog jumping into pond at (${frog.jumpTargetX.toFixed(0)}, ${frog.jumpTargetY.toFixed(0)})`);
+                    } else {
+                        // Jump randomly
+                        frog.jumping = true;
+                        frog.jumpTimer = 0;
+                        frog.jumpStartX = frog.x;
+                        frog.jumpStartY = frog.y;
+                        frog.jumpTargetX = frog.x + (Math.random() - 0.5) * 100;
+                        frog.jumpTargetY = canvas.height * GROUND_HEIGHT_RATIO;
+                        debugLog(`Frog jumping from (${frog.x.toFixed(0)}, ${frog.y.toFixed(0)})`);
+                    }
                 }
 
                 if (frog.jumping) {
@@ -4437,10 +4468,27 @@ function drawWorms() {
         // Draw twigs on ground
         function drawTwigs() {
             twigs.forEach((twig) => {
+                // Check if twig is in a pond - if so, flatten it for frogs to use
+                let isInPond = false;
+                let adjustedAngle = twig.angle;
+
+                for (const pond of ponds) {
+                    const distToPond = Math.sqrt(
+                        Math.pow(twig.x - pond.x, 2) +
+                        Math.pow(twig.y - (pond.y + pond.height), 2)
+                    );
+                    if (distToPond < pond.width) {
+                        isInPond = true;
+                        // Flatten the branch to be more horizontal (Frogger reference)
+                        adjustedAngle = (Math.random() - 0.5) * Math.PI * 0.2; // Nearly horizontal
+                        break;
+                    }
+                }
+
                 ctx.save();
                 ctx.translate(twig.x, twig.y);
-                ctx.rotate(twig.angle);
-                
+                ctx.rotate(adjustedAngle);
+
                 // Draw branch - color differently if it's a special twig
                 if (twig.isSpecial) {
                     // Special twigs have a slight glow and lighter color
@@ -5495,6 +5543,44 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                 const visionRadius = this.hunger > HUNGER_CRITICAL_THRESHOLD ?
                     BIRD_FOOD_VISION_RADIUS * 2 : BIRD_FOOD_VISION_RADIUS * 1.5;
 
+                // NEW: Check for large food piles (ground flocking behavior)
+                // Count food items in clusters
+                const foodClusters = [];
+                const clusterRadius = 80;
+
+                for (const food of foodItems) {
+                    let addedToCluster = false;
+                    for (const cluster of foodClusters) {
+                        if (distance(food.x, food.y, cluster.x, cluster.y) < clusterRadius) {
+                            cluster.count++;
+                            cluster.x = (cluster.x * (cluster.count - 1) + food.x) / cluster.count;
+                            cluster.y = (cluster.y * (cluster.count - 1) + food.y) / cluster.count;
+                            addedToCluster = true;
+                            break;
+                        }
+                    }
+                    if (!addedToCluster) {
+                        foodClusters.push({ x: food.x, y: food.y, count: 1 });
+                    }
+                }
+
+                // If there's a large food pile (5+ items), go to ground and flock
+                for (const cluster of foodClusters) {
+                    if (cluster.count >= 5 && distance(this.x, this.y, cluster.x, cluster.y) < visionRadius * 1.5) {
+                        // Direct to ground near food cluster
+                        const groundY = canvas.height * GROUND_HEIGHT_RATIO + 20;
+                        this.path = [
+                            { x: this.x, y: this.y },
+                            { x: cluster.x + (Math.random() - 0.5) * 40, y: groundY }
+                        ];
+                        this.pathIndex = 0;
+                        this.intendToHop = true;
+                        this.hopData = null;
+                        debugLog(`Bird joining ground flock at food pile (${cluster.x}, ${cluster.y}) with ${cluster.count} items`);
+                        return;
+                    }
+                }
+
                 // Check food memory first
                 const now = Date.now();
                 this.foodMemory = this.foodMemory.filter(f => now - f.timestamp < FOOD_KNOWLEDGE_DURATION);
@@ -6080,6 +6166,9 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
 
             // Emit a chirp with specific type
             chirp(type, intensity = 1.0) {
+                // Don't chirp during playthehits performance
+                if (playingTheHits) return;
+
                 const now = Date.now();
                 if (now - this.lastChirp < 1000) return; // Cooldown
 
@@ -7550,7 +7639,24 @@ if ((isRaining || timeOfDay >= 1) && Math.random() < 0.4) { // 40% chance to see
                         // V26: Additional damping for flying state to prevent excessive acceleration
                         this.velocity.x *= 0.97; // More damping
                         this.velocity.y *= 0.97; // More damping
-                        
+
+                        // NEW: Calm behavior - birds should land on ground when flying near it (10% chance)
+                        const groundY = canvas.height * GROUND_HEIGHT_RATIO;
+                        const distanceToGround = Math.abs(this.y - groundY);
+
+                        if (distanceToGround < 80 && Math.random() < 0.001) { // 10% chance when near ground, checked frequently
+                            // Land on ground and rest/hop
+                            const landX = this.x + (Math.random() - 0.5) * 50;
+                            this.path = [
+                                { x: this.x, y: this.y },
+                                { x: landX, y: groundY + 20 }
+                            ];
+                            this.pathIndex = 0;
+                            this.intendToHop = true;
+                            this.hopData = null;
+                            debugLog(`Bird landing on ground for calm behavior at (${landX}, ${groundY + 20})`);
+                        }
+
                         // If we have a path, follow it
                         if (this.path && this.path.length > 0 && this.pathIndex < this.path.length) {
                             const waypoint = this.path[this.pathIndex];
@@ -8790,9 +8896,9 @@ class Squirrel {
                     this.state = 'foraging';
                     this.stateTimer = 0;
                 }
-                
-                // Stay on ground
-                this.y = this.groundY - 5;
+
+                // Allow exploring slightly below ground to reach worms/branches
+                this.y = Math.min(this.y, this.groundY + 15); // Can go 15px below ground line
                 
                 // Leave after a while
                 if (this.stateTimer > 60000 || 
@@ -8810,8 +8916,8 @@ class Squirrel {
                 break;
                 
             case 'foraging':
-                // Add this line to keep squirrels on the ground while foraging
-                this.y = this.groundY - 5;
+                // Allow squirrels to explore below ground while foraging for worms/branches
+                this.y = Math.min(this.y, this.groundY + 15); // Can go 15px below ground line
                 
                 // Bobbing and foraging motions
                 this.velocity.x *= 0.9;
@@ -9038,9 +9144,9 @@ class Squirrel {
                 // Apply gravity
                 this.applyForce({ x: 0, y: 0.05 });
                 
-                // Check if reached ground
-                if (this.y >= this.groundY - 5) {
-                    this.y = this.groundY - 5;
+                // Check if reached ground (allow slightly below for foraging)
+                if (this.y >= this.groundY + 15) {
+                    this.y = this.groundY + 15;
                     this.velocity.y = 0;
                     this.state = 'stunned';
                     this.stateTimer = 0;
@@ -9071,8 +9177,8 @@ class Squirrel {
                     y: 0
                 });
 
-                // Stay on ground
-                this.y = this.groundY - 5;
+                // Allow exploring slightly below ground
+                this.y = Math.min(this.y, this.groundY + 15);
 
                 // Return to wandering after fleeing
                 if (this.stateTimer > 3000) {
@@ -13194,19 +13300,19 @@ function drawAnts() {
     if (!antHill) return;
     
     // Draw the ant hill
-    ctx.fillStyle = '#8B4513'; // Brown
+    ctx.fillStyle = mushroomMode ? getMushroomColor('#8B4513') : '#8B4513'; // Brown
     ctx.beginPath();
     ctx.ellipse(
-        antHill.x, 
-        antHill.y, 
-        antHill.size, 
-        antHill.size * 0.6, 
+        antHill.x,
+        antHill.y,
+        antHill.size,
+        antHill.size * 0.6,
         0, 0, Math.PI * 2
     );
     ctx.fill();
-    
+
     // Draw ant hill entrance
-    ctx.fillStyle = '#3D1C02'; // Darker brown
+    ctx.fillStyle = mushroomMode ? getMushroomColor('#3D1C02') : '#3D1C02'; // Darker brown
     ctx.beginPath();
     ctx.ellipse(
         antHill.x, 
@@ -13229,14 +13335,14 @@ function drawAnts() {
         
         // Draw food if carrying (underneath ant when drawn)
         if (ant.carryingFood) {
-            ctx.fillStyle = '#D2B48C'; // Tan color for food
+            ctx.fillStyle = mushroomMode ? getMushroomColor('#D2B48C') : '#D2B48C'; // Tan color for food
             ctx.beginPath();
             ctx.arc(ant.foodX, ant.foodY, 2, 0, Math.PI * 2);
             ctx.fill();
         }
-        
+
         // Cute ant body - lighter brown
-        ctx.fillStyle = '#654321'; // Medium brown
+        ctx.fillStyle = mushroomMode ? getMushroomColor('#654321') : '#654321'; // Medium brown
         
         // Draw rounded body segments
         // Head
@@ -13265,7 +13371,7 @@ function drawAnts() {
         ctx.fill();
         
         // Antennae
-        ctx.strokeStyle = '#654321';
+        ctx.strokeStyle = mushroomMode ? getMushroomColor('#654321') : '#654321';
         ctx.lineWidth = 0.5;
         
         ctx.beginPath();
@@ -13700,6 +13806,123 @@ function spawnOwls() {
             console.log("Test tone should play now (440Hz for 0.5s)");
         };
 
+        // Hidden console command: playthehits
+        // Makes birds chirp melodic patterns inspired by popular songs
+        window.playthehits = function() {
+            console.log("🎵 Playing the hits! Birds will chirp popular melodies...");
+
+            if (!audioContext) {
+                initializeAudio();
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if (!audioContext) {
+                console.error("Cannot initialize audio context");
+                return;
+            }
+
+            // Check if muted
+            if (typeof isMuted !== 'undefined' && isMuted) {
+                console.log("Audio is muted, unmute to hear the hits!");
+                return;
+            }
+
+            // Check if already playing
+            if (playingTheHits) {
+                console.log("Already playing the hits! Wait for the current song to finish.");
+                return;
+            }
+
+            // Melodic patterns (rhythm and note patterns inspired by songs)
+            const melodies = [
+                // "Call Me Maybe" pattern - upbeat and catchy
+                { name: "Call Me Maybe", notes: [659, 587, 523, 587, 659, 698, 783], durations: [0.15, 0.15, 0.2, 0.15, 0.15, 0.2, 0.3] },
+                // "Who Let the Dogs Out" pattern - rhythmic and repetitive
+                { name: "Who Let the Dogs Out", notes: [523, 523, 587, 659, 523, 523, 587, 659], durations: [0.12, 0.12, 0.12, 0.25, 0.12, 0.12, 0.12, 0.25] },
+                // "Sittin' On The Dock of the Bay" pattern - relaxed whistling
+                { name: "Sittin' On The Dock of the Bay", notes: [523, 587, 659, 698, 659, 587, 523], durations: [0.2, 0.2, 0.25, 0.3, 0.25, 0.2, 0.3] },
+                // "Me and Julio" pattern - playful and light
+                { name: "Me and Julio Down by the Schoolyard", notes: [587, 659, 698, 783, 698, 659, 587], durations: [0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.25] },
+                // "Young Folks" pattern - whistling melody
+                { name: "Young Folks", notes: [880, 783, 698, 783, 880, 987, 880], durations: [0.2, 0.15, 0.15, 0.2, 0.2, 0.25, 0.3] },
+                // "Pumped Up Kicks" pattern - mellow whistle
+                { name: "Pumped Up Kicks", notes: [659, 698, 783, 698, 659, 587, 659], durations: [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.3] },
+                // "Don't Worry Be Happy" pattern - cheerful whistling
+                { name: "Don't Worry Be Happy", notes: [523, 659, 783, 880, 783, 659, 523], durations: [0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3] },
+                // "Walk Like an Egyptian" pattern - quirky melody
+                { name: "Walk Like an Egyptian", notes: [587, 523, 587, 698, 783, 698, 587], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.3] },
+                // "Whistle While You Work" pattern - classic Disney whistle
+                { name: "Whistle While You Work", notes: [523, 587, 659, 698, 783, 698, 659, 587, 523], durations: [0.15, 0.15, 0.15, 0.2, 0.25, 0.2, 0.15, 0.15, 0.3] }
+            ];
+
+            // Pick ONE random melody
+            const melody = melodies[Math.floor(Math.random() * melodies.length)];
+            console.log(`🎶 Playing: "${melody.name}"`);
+
+            // Disable random chirping during performance
+            playingTheHits = true;
+
+            if (birds.length === 0) {
+                console.log("No birds in the garden to sing!");
+                playingTheHits = false;
+                return;
+            }
+
+            // Divide the melody among available birds
+            const availableBirds = birds.slice(0, Math.min(birds.length, melody.notes.length));
+            const notesPerBird = Math.ceil(melody.notes.length / availableBirds.length);
+
+            console.log(`🐦 ${availableBirds.length} birds will share the melody (${melody.notes.length} notes)`);
+
+            let currentTime = audioContext.currentTime + 0.2; // Small delay to start
+            let totalDuration = 0;
+
+            // Each bird gets a portion of the melody
+            availableBirds.forEach((bird, birdIndex) => {
+                const startNote = birdIndex * notesPerBird;
+                const endNote = Math.min(startNote + notesPerBird, melody.notes.length);
+
+                for (let i = startNote; i < endNote; i++) {
+                    const freq = melody.notes[i];
+                    const duration = melody.durations[i];
+
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    filter.type = 'bandpass';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 3;
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+
+                    gain.gain.value = 0;
+                    gain.gain.setValueAtTime(0, currentTime);
+                    gain.gain.linearRampToValueAtTime(0.18, currentTime + 0.01);
+                    gain.gain.linearRampToValueAtTime(0, currentTime + duration);
+
+                    osc.start(currentTime);
+                    osc.stop(currentTime + duration + 0.01);
+
+                    currentTime += duration + 0.08; // Small gap between notes
+                    totalDuration = currentTime - audioContext.currentTime;
+                }
+            });
+
+            // Re-enable chirping after the song finishes
+            setTimeout(() => {
+                playingTheHits = false;
+                console.log("🎵 Song finished! Regular chirping resumed.");
+            }, totalDuration * 1000 + 500);
+        };
+
         // Musical scales for bird chirps (frequencies in Hz)
         const BIRD_SCALES = {
             // Pentatonic scale (very melodic, used in many bird songs)
@@ -13715,6 +13938,12 @@ function spawnOwls() {
         // Musical bird chirp synthesis with different voices per bird
         function synthBirdChirp(volume = 0.3, birdId = null) {
             console.log("synthBirdChirp called - volume:", volume, "birdId:", birdId);
+
+            // Check if muted first
+            if (typeof isMuted !== 'undefined' && isMuted) {
+                console.log("Audio is muted, skipping chirp");
+                return;
+            }
 
             // Initialize audio context if needed
             if (!audioContext) {
