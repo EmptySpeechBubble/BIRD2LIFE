@@ -14421,16 +14421,9 @@ function spawnOwls() {
             const minuteStr = minutes.toString().padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
 
-            // Large transparent clock in upper sky
+            // Large transparent clock in upper sky - DOUBLED SIZE
             const clockY = canvas.height * 0.2;
             const clockCenterX = canvas.width / 2;
-
-            ctx.save();
-
-            // Draw time - large but transparent
-            ctx.font = 'bold 140px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
 
             // Subtle shadow for visibility
             ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
@@ -14438,22 +14431,83 @@ function spawnOwls() {
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
 
-            // Semi-transparent white/light color
+            // Base opacity for clock
             const timeOpacity = mushroomMode ? 0.25 : 0.2;
-            ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity})`;
-            ctx.fillText(`${hour12}:${minuteStr}`, clockCenterX, clockY);
 
-            // Draw AM/PM smaller
-            ctx.font = 'bold 50px Arial';
+            // Draw time - now MUCH LARGER (280px instead of 140px)
+            const fontSize = 280;
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Build the time string and draw each character individually
+            const timeText = `${hour12}:${minuteStr}`;
+            const charWidth = 160; // approximate width per character (doubled from 80)
+            const totalWidth = timeText.length * charWidth;
+            const startTextX = clockCenterX - (totalWidth / 2);
+
+            // Check which birds are perched on clock numbers
+            const birdsOnClock = [];
+            if (window.clockNumberPositions) {
+                birds.forEach(bird => {
+                    if (bird.perchTarget && bird.perchTarget.isClock) {
+                        birdsOnClock.push({
+                            birdX: bird.x,
+                            birdY: bird.y
+                        });
+                    }
+                });
+            }
+
+            // Store clock number positions for bird landing
+            window.clockNumberPositions = [];
+
+            // Draw each character with individual opacity based on bird presence
+            for (let i = 0; i < timeText.length; i++) {
+                const char = timeText[i];
+                const charX = startTextX + (i * charWidth);
+                const charY = clockY;
+
+                // Check if a bird is near this character
+                let birdNearby = false;
+                if (char !== ':') {
+                    // Store position for perching
+                    window.clockNumberPositions.push({
+                        x: charX,
+                        y: clockY - 100, // top of numbers (adjusted for larger size)
+                        width: charWidth,
+                        charIndex: i
+                    });
+
+                    // Check if any bird is perched on this number
+                    birdNearby = birdsOnClock.some(birdPos => {
+                        const dist = Math.sqrt(
+                            Math.pow(birdPos.birdX - charX, 2) +
+                            Math.pow(birdPos.birdY - (clockY - 100), 2)
+                        );
+                        return dist < charWidth;
+                    });
+                }
+
+                // Increase opacity if bird is nearby
+                const charOpacity = birdNearby ? timeOpacity * 3 : timeOpacity; // 3x more opaque with bird
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(charOpacity, 0.7)})`; // cap at 0.7
+
+                // Draw this character
+                ctx.fillText(char, charX, charY);
+            }
+
+            // Draw AM/PM at the BOTTOM of the clock (not top-right)
+            ctx.font = 'bold 100px Arial'; // Doubled from 50px
             ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity * 0.8})`;
-            ctx.fillText(ampm, clockCenterX + 150, clockY - 30);
+            ctx.fillText(ampm, clockCenterX, clockY + 180); // Below the clock
 
-            // Draw weather forecast icons below clock
-            const forecastY = clockY + 100;
-            const iconSpacing = 100;
+            // Draw weather forecast icons below clock (further down now)
+            const forecastY = clockY + 320; // Adjusted for larger clock
+            const iconSpacing = 120; // Slightly larger spacing
             const startX = clockCenterX - iconSpacing;
 
-            ctx.font = '50px Arial';
+            ctx.font = '60px Arial'; // Slightly larger icons
             ctx.shadowBlur = 5;
 
             for (let i = 0; i < Math.min(3, nextWeatherEvents.length); i++) {
@@ -14465,30 +14519,8 @@ function spawnOwls() {
                 ctx.fillText(event.icon, x, forecastY);
             }
 
-            ctx.restore();
-
-            // Store clock number positions for bird landing
-            // This will be used later for bird landing behavior
-            if (!window.clockNumberPositions) {
-                window.clockNumberPositions = [];
-            }
-
-            // Define landing spots on the clock numbers
-            const timeText = `${hour12}:${minuteStr}`;
-            const charWidth = 80; // approximate width per character
-            const totalWidth = timeText.length * charWidth;
-            const startTextX = clockCenterX - (totalWidth / 2);
-
-            window.clockNumberPositions = [];
-            for (let i = 0; i < timeText.length; i++) {
-                if (timeText[i] !== ':') {
-                    window.clockNumberPositions.push({
-                        x: startTextX + (i * charWidth),
-                        y: clockY - 50, // top of numbers
-                        width: charWidth
-                    });
-                }
-            }
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
         }
 
         // Update forecast periodically
