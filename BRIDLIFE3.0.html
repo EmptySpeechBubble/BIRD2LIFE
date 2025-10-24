@@ -7735,15 +7735,22 @@ if (this.pathIndex >= this.path.length) {
                     
 
                         case BIRD_STATES.HOPPING:
+    // Store depth preference for this bird if not set (some birds prefer foreground, some background)
+    if (this.depthPreference === undefined) {
+        this.depthPreference = Math.random() * 60; // 0-60 pixels below ground line
+    }
+
+    const targetHopY = canvas.height * GROUND_HEIGHT_RATIO + 20 + this.depthPreference;
+
     // CRITICAL FIX: Immediately verify and enforce ground position (allow hopping below ground into grass)
-    if (Math.abs(this.y - (canvas.height * GROUND_HEIGHT_RATIO + 20)) > 25) {
-        debugLog(`Fixing bird position in hopping state: ${this.y} → ${canvas.height * GROUND_HEIGHT_RATIO + 20}`);
-        this.y = canvas.height * GROUND_HEIGHT_RATIO + 20;
+    if (Math.abs(this.y - targetHopY) > 25) {
+        debugLog(`Fixing bird position in hopping state: ${this.y} → ${targetHopY}`);
+        this.y = targetHopY;
         this.velocity = { x: 0, y: 0 };
     }
 
     // Define hopping ground level once to ensure consistency (below ground line for worms/branches)
-    const hoppingGroundY = canvas.height * GROUND_HEIGHT_RATIO + 20;
+    const hoppingGroundY = targetHopY;
 
     // Only stay in hopping state for a reasonable duration
     if (this.stateTimer < BIRD_STATE_DURATION.HOPPING) {
@@ -13376,7 +13383,8 @@ function drawAnts() {
 
             if (Math.random() < 0.04) { // Increased from 0.02 to make rats more common
                 const x = Math.random() < 0.5 ? -30 : canvas.width + 30;
-                const y = canvas.height * GROUND_HEIGHT_RATIO;
+                // Spawn rats deeper in the foreground (up to 50 pixels below ground line)
+                const y = canvas.height * GROUND_HEIGHT_RATIO + Math.random() * 50;
 
                 // Reduced chance to spawn a rat king
                 const isRatKing = rats.length > 0 && Math.random() < RAT_KING_FORMATION_CHANCE; // Reduced from 0.2 to 0.15
@@ -13392,18 +13400,19 @@ function drawAnts() {
         // Spawn worms with some clustering
         function spawnWorms() {
     if (worms.length >= MAX_WORMS) return;
-    
+
     if (Math.random() < 0.02) {
         const clusterSize = Math.floor(Math.random() * 3) + 1; // 1-3 worms in cluster
         const baseX = Math.random() * canvas.width;
-        const baseY = canvas.height * GROUND_HEIGHT_RATIO + Math.random() * 20;
-        
+        // Increased depth range from 20 to 70 pixels for better foreground depth
+        const baseY = canvas.height * GROUND_HEIGHT_RATIO + Math.random() * 70;
+
         for (let i = 0; i < clusterSize; i++) {
             if (worms.length < MAX_WORMS) {
                 const x = baseX + (Math.random() - 0.5) * 30;
                 // Ensure worms stay below ground level with Math.max
-                const y = Math.max(canvas.height * GROUND_HEIGHT_RATIO, baseY + (Math.random() * 10)); 
-                
+                const y = Math.max(canvas.height * GROUND_HEIGHT_RATIO, baseY + (Math.random() * 15));
+
                 worms.push({
                     x: x,
                     y: y,
