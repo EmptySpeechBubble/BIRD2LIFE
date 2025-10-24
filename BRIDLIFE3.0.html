@@ -298,7 +298,8 @@
         <!-- Add missing toggle buttons -->
         <button id="toggleInfo" class="toggle-panel">ℹ️ Show Info</button>
         <button id="toggleManual" class="toggle-panel" style="top: 50px;">☐ 📖 Guide</button>
-        <button id="toggleMushroom" class="toggle-panel" style="display: none; top: 110px; background-color: #f8f8f8;">🍄 Mushroom Mode</button>
+        <button id="toggleClock" class="toggle-panel" style="top: 100px;">☐ 🕐 Clock</button>
+        <button id="toggleMushroom" class="toggle-panel" style="display: none; top: 150px; background-color: #f8f8f8;">🍄 Mushroom Mode</button>
        
       
         <div class="control-panel" id="controlPanel">
@@ -1033,6 +1034,83 @@ function updateBirdTrails() {
         // Initial forecast update
         updateForecast();
 
+        // Draw on-screen clock with bird perching
+        function drawOnScreenClock() {
+            const displayHour12 = currentHour % 12 || 12;
+            const timeOfDayFraction = timeOfDay < 1 ? timeOfDay * 12 : 12 + (timeOfDay - 1) * 12;
+            const minuteFraction = timeOfDayFraction - Math.floor(timeOfDayFraction);
+            const minutes = Math.floor(minuteFraction * 60);
+
+            const clockText = `${displayHour12}:${minutes.toString().padStart(2, '0')}`;
+
+            // Detect digit changes
+            if (lastClockDigits && lastClockDigits !== clockText) {
+                // Spook birds perched on clock
+                birds.forEach(bird => {
+                    if (bird.perchTarget && bird.perchTarget.type === 'clock') {
+                        bird.state = BIRD_STATES.FLYING;
+                        bird.stateTimer = 0;
+                        bird.velocity.y = -2; // Fly up
+                        bird.perchTarget = null;
+                        debugLog(`Bird spooked by clock change!`);
+                    }
+                });
+            }
+            lastClockDigits = clockText;
+
+            // Draw clock
+            ctx.save();
+            ctx.font = 'bold 80px monospace';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const clockX = canvas.width / 2;
+            const clockY = 80;
+
+            // Draw shadow
+            ctx.strokeText(clockText, clockX, clockY);
+            ctx.fillText(clockText, clockX, clockY);
+
+            // Calculate perch spots on numbers and colon
+            clockPerchSpots = [];
+            const charWidth = 48; // Approximate width per character
+            const startX = clockX - (clockText.length * charWidth) / 2;
+
+            for (let i = 0; i < clockText.length; i++) {
+                const char = clockText[i];
+                const charX = startX + (i * charWidth) + charWidth / 2;
+
+                // Add multiple perch spots per character (top, middle, sides)
+                clockPerchSpots.push({
+                    x: charX,
+                    y: clockY - 30, // Top
+                    width: charWidth,
+                    height: 10,
+                    type: 'clock',
+                    char: char
+                });
+                clockPerchSpots.push({
+                    x: charX,
+                    y: clockY + 30, // Bottom
+                    width: charWidth,
+                    height: 10,
+                    type: 'clock',
+                    char: char
+                });
+            }
+
+            ctx.restore();
+        }
+
+        // Add clock perch spots to bird perching logic
+        // This gets called when birds look for perch spots
+        function getClockPerchSpots() {
+            return showClock ? clockPerchSpots : [];
+        }
+
 // Gameboy object and tracking variables
 let gameboy = null;
 let gameboyOwlDelivered = false;
@@ -1484,6 +1562,9 @@ let playingTheHits = false; // Flag to disable random chirps during playthehits 
 let isMuted = false; // Track mute state globally
 let nextRainTime = null; // Track when next rain is scheduled
 let rainDuration = 0; // How long current/next rain will last
+let showClock = false; // Toggle for on-screen clock
+let lastClockDigits = ""; // Track clock digits to detect changes
+let clockPerchSpots = []; // Perching spots on clock numbers
         
         // Wind Chime Sound Effect System
         let windChimeEnabled = false;
@@ -5462,11 +5543,16 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                 
                 // Collect all possible perch positions
                 let allPerchPositions = [];
-                
+
                 trees.forEach(tree => {
                     const positions = tree.getPerchPositions();
                     allPerchPositions = allPerchPositions.concat(positions);
                 });
+
+                // Add clock perch spots if clock is showing
+                if (showClock && clockPerchSpots.length > 0) {
+                    allPerchPositions = allPerchPositions.concat(clockPerchSpots);
+                }
                 
                 // Safety check - if no perch positions, fly
                 if (allPerchPositions.length === 0) {
@@ -14667,6 +14753,11 @@ for (let i = owls.length - 1; i >= 0; i--) {
     // Draw visual music notes for chirps (accessibility feature)
     drawChirpMusicNotes(now);
 
+    // Draw on-screen clock if enabled
+    if (showClock) {
+        drawOnScreenClock();
+    }
+
     // Synchronized chirping - social chirps trigger nearby birds to chirp
     if (activeChirps.length > 0 && Math.random() < 0.05) {
         const recentChirps = activeChirps.filter(c =>
@@ -15086,6 +15177,16 @@ if (antHill) {
                 if (toggleManual) toggleManual.textContent = '☐ 📖 Guide';
                 debugLog("Instruction manual closed (clicked outside)");
             }
+        });
+    }
+
+    // Clock toggle
+    const toggleClock = document.getElementById('toggleClock');
+    if (toggleClock) {
+        toggleClock.addEventListener('click', () => {
+            showClock = !showClock;
+            toggleClock.textContent = showClock ? '☑ 🕐 Clock' : '☐ 🕐 Clock';
+            debugLog(`Clock ${showClock ? 'shown' : 'hidden'}`);
         });
     }
 
