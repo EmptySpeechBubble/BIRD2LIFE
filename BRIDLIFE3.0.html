@@ -292,6 +292,12 @@
         <div class="info-panel" id="infoPanel" style="display: none;">
             <h3>Garden Ecosystem</h3>
             <div id="stats"></div>
+            <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+                <label style="cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="clockToggle" style="margin-right: 5px;">
+                    🕐 Show Real-Time Clock & Forecast
+                </label>
+            </div>
             <button id="screenshotBtn" class="screenshot-btn">📷 Take Screenshot</button>
             <button id="manualBtn" class="manual-btn">📖 Guide & Features</button>
             <button id="muteBtn" class="mute-btn">🔊 Mute</button>
@@ -919,6 +925,10 @@ function updateBirdTrails() {
         maxWormsEver = Math.max(maxWormsEver, worms.length);
         maxFlowersEver = Math.max(maxFlowersEver, flowers.length);
         maxNestsEver = Math.max(maxNestsEver, nests.length);
+        maxPondsEver = Math.max(maxPondsEver, ponds.length);
+        maxFrogsEver = Math.max(maxFrogsEver, frogs.length);
+        maxKoiEver = Math.max(maxKoiEver, koi.length);
+        maxBirdhousesEver = Math.max(maxBirdhousesEver, birdhouses.length);
 
         statsDisplay.innerHTML = `
     <strong>Entities (Current / Max):</strong>
@@ -927,15 +937,15 @@ function updateBirdTrails() {
         <li>Birds: ${birds.length} / ${maxBirdsEver}</li>
         <li>Baby Birds: ${babyBirds.length} (Total Born: ${totalBabiesBorn})</li>
         <li>Nests: ${nests.length} / ${maxNestsEver}</li>
-        <li>Birdhouses: ${birdhouses.length}</li>
+        <li>Birdhouses: ${birdhouses.length} / ${maxBirdhousesEver}</li>
         <li>Worms: ${worms.length} / ${maxWormsEver}</li>
         <li>Twigs: ${twigs.length}</li>
         <li>Rats: ${rats.length} / ${maxRatsEver}</li>
         <li>Squirrels: ${squirrels.length} / ${maxSquirrelsEver}</li>
         <li>Puddles: ${puddles.length}</li>
-        <li>Ponds: ${ponds.length}</li>
-        <li>Frogs: ${frogs.length}</li>
-        <li>Koi: ${koi.length}</li>
+        <li>Ponds: ${ponds.length} / ${maxPondsEver}</li>
+        <li>Frogs: ${frogs.length} / ${maxFrogsEver}</li>
+        <li>Koi: ${koi.length} / ${maxKoiEver}</li>
         <li>Food: ${foodItems.length}</li>
         <li>Flowers: ${flowers.length} / ${maxFlowersEver}</li>
     </ul>
@@ -1312,6 +1322,10 @@ let ants = [];
         let maxWormsEver = 0;
         let maxFlowersEver = 0;
         let maxNestsEver = 0;
+        let maxPondsEver = 0;
+        let maxFrogsEver = 0;
+        let maxKoiEver = 0;
+        let maxBirdhousesEver = 0;
 
         let mushroomMode = false;
 let colorCycleTimer = 0;
@@ -1397,6 +1411,11 @@ let rainsCompleted = 0; // Track number of completed rain events (for pond forma
         
         // Wind Chime Sound Effect System
         let windChimeEnabled = false;
+
+        // Clock and Weather Forecast System
+        let clockEnabled = false;
+        let weatherForecast = []; // Array of {type: 'rain'|'thunder'|'clear', time: timestamp}
+        let nextWeatherEvents = []; // Next 3 upcoming events for display
         let windChimeSounds = [];
         let windChimeTimeout = null;
         let lastWindChimeTime = 0;
@@ -5413,12 +5432,26 @@ if (timeOfDay < 1 && Math.random() < 0.001) {
                 
                 // Collect all possible perch positions
                 let allPerchPositions = [];
-                
+
                 trees.forEach(tree => {
                     const positions = tree.getPerchPositions();
                     allPerchPositions = allPerchPositions.concat(positions);
                 });
-                
+
+                // Add clock number positions as perch spots when clock is enabled
+                if (clockEnabled && window.clockNumberPositions && window.clockNumberPositions.length > 0) {
+                    window.clockNumberPositions.forEach(clockSpot => {
+                        // Add each clock number as a perch position
+                        allPerchPositions.push({
+                            x: clockSpot.x + (clockSpot.width / 2), // center of number
+                            y: clockSpot.y,
+                            inLeaves: false,
+                            tree: null, // no tree, it's a clock number
+                            isClock: true // mark as clock perch
+                        });
+                    });
+                }
+
                 // Safety check - if no perch positions, fly
                 if (allPerchPositions.length === 0) {
                     this.state = BIRD_STATES.FLYING;
@@ -14329,6 +14362,131 @@ function spawnOwls() {
         }
 
         // Update and draw all elements
+        // Weather Forecast System
+        function generateWeatherForecast() {
+            // Generate predictions for next 3 weather events
+            // Based on average rain timing: 8-13 minutes
+            const avgRainDelay = 480000 + 150000; // midpoint: 10.5 minutes
+            const currentTime = Date.now();
+
+            nextWeatherEvents = [];
+
+            // Simulate next 3 potential events
+            for (let i = 0; i < 3; i++) {
+                const eventTime = currentTime + (avgRainDelay * (i + 1));
+                const willRain = Math.random() < 0.7; // Higher probability for display purposes
+
+                if (willRain) {
+                    const willThunder = Math.random() < 0.3;
+                    nextWeatherEvents.push({
+                        type: willThunder ? 'thunder' : 'rain',
+                        icon: willThunder ? '⛈️' : '🌧️',
+                        time: eventTime
+                    });
+                } else {
+                    nextWeatherEvents.push({
+                        type: 'clear',
+                        icon: '☀️',
+                        time: eventTime
+                    });
+                }
+            }
+        }
+
+        // Draw large transparent clock in sky with forecast
+        function drawClock() {
+            if (!clockEnabled) return;
+
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // Format time
+            const hour12 = hours % 12 || 12;
+            const minuteStr = minutes.toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+
+            // Large transparent clock in upper sky
+            const clockY = canvas.height * 0.2;
+            const clockCenterX = canvas.width / 2;
+
+            ctx.save();
+
+            // Draw time - large but transparent
+            ctx.font = 'bold 140px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Subtle shadow for visibility
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            // Semi-transparent white/light color
+            const timeOpacity = mushroomMode ? 0.25 : 0.2;
+            ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity})`;
+            ctx.fillText(`${hour12}:${minuteStr}`, clockCenterX, clockY);
+
+            // Draw AM/PM smaller
+            ctx.font = 'bold 50px Arial';
+            ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity * 0.8})`;
+            ctx.fillText(ampm, clockCenterX + 150, clockY - 30);
+
+            // Draw weather forecast icons below clock
+            const forecastY = clockY + 100;
+            const iconSpacing = 100;
+            const startX = clockCenterX - iconSpacing;
+
+            ctx.font = '50px Arial';
+            ctx.shadowBlur = 5;
+
+            for (let i = 0; i < Math.min(3, nextWeatherEvents.length); i++) {
+                const event = nextWeatherEvents[i];
+                const x = startX + (i * iconSpacing);
+
+                // Draw icon with slight transparency
+                ctx.fillStyle = `rgba(255, 255, 255, ${timeOpacity * 1.2})`;
+                ctx.fillText(event.icon, x, forecastY);
+            }
+
+            ctx.restore();
+
+            // Store clock number positions for bird landing
+            // This will be used later for bird landing behavior
+            if (!window.clockNumberPositions) {
+                window.clockNumberPositions = [];
+            }
+
+            // Define landing spots on the clock numbers
+            const timeText = `${hour12}:${minuteStr}`;
+            const charWidth = 80; // approximate width per character
+            const totalWidth = timeText.length * charWidth;
+            const startTextX = clockCenterX - (totalWidth / 2);
+
+            window.clockNumberPositions = [];
+            for (let i = 0; i < timeText.length; i++) {
+                if (timeText[i] !== ':') {
+                    window.clockNumberPositions.push({
+                        x: startTextX + (i * charWidth),
+                        y: clockY - 50, // top of numbers
+                        width: charWidth
+                    });
+                }
+            }
+        }
+
+        // Update forecast periodically
+        let lastForecastUpdate = 0;
+        function updateWeatherForecast() {
+            const now = Date.now();
+            if (now - lastForecastUpdate > 60000) { // Update every minute
+                generateWeatherForecast();
+                lastForecastUpdate = now;
+            }
+        }
+
         function updateAndDraw(timestamp) {
     if (!animationRunning) return;
 
@@ -14549,6 +14707,13 @@ for (let i = owls.length - 1; i >= 0; i--) {
 
     // Draw special effects
     drawSpecialEffects(deltaTime);
+
+    // ===== CLOCK AND FORECAST LAYER =====
+    // Update and draw clock if enabled
+    if (clockEnabled) {
+        updateWeatherForecast();
+        drawClock();
+    }
 
     // ===== DEBUG LAYER (very top) =====
     // Draw off-screen indicators in debug mode
@@ -15063,6 +15228,15 @@ if (antHill) {
                 muteBtn.classList.remove('muted');
                 debugLog("Audio unmuted");
             }
+        });
+    }
+
+    // Clock toggle handler
+    const clockToggle = document.getElementById('clockToggle');
+    if (clockToggle) {
+        clockToggle.addEventListener('change', () => {
+            clockEnabled = clockToggle.checked;
+            debugLog(`Clock display ${clockEnabled ? 'enabled' : 'disabled'}`);
         });
     }
 
@@ -15827,16 +16001,19 @@ canvas.addEventListener('touchstart', (e) => {
         function initialize() {
             // Update canvas size
             resizeCanvas();
-            
+
             // Generate initial stars
             generateStars();
-            
+
+            // Generate initial weather forecast
+            generateWeatherForecast();
+
             // Setup event handlers
             setupEventHandlers();
-            
+
             // Update debug visuals
             updateDebugVisuals();
-            
+
             // Start animation
             startAnimation();
         }
